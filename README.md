@@ -24,6 +24,8 @@ Use `test_belt.bat` or `test_belt.sh`
 | `open_dwp` | Authenticated encryption: `belt-open-dwp` |
 | `seal_che` | Authenticated encryption: `belt-seal-che` |
 | `open_che` | Authenticated encryption: `belt-open-che` |
+| `seal_kwp` | Key wrap encryption: `belt-seal-kwp` |
+| `open_kwp` | Key wrap encryption: `belt-open-kwp` |
 | `encrypt_ctr` | Counter encryption: `belt-encrypt-ctr` |
 | `decrypt_ctr` | Counter encryption: `belt-decrypt-ctr` |
 | `encrypt_cfb` | Cipher feedback encryption: `belt-encrypt-cfb` |
