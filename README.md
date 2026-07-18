@@ -7,14 +7,9 @@ Specification: [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://a
 ## How to Test
 Use `test_belt.bat` or `test_belt.sh`
 
-## Minimum Requirements
-- `AMD64` with `SSE2` and `PCLMUL` support
-- `ARM64` with `Neon`, `AES` and `PMULL` support
-
 ## TODO
 - [ ] Format preserving encryption: `belt-encrypt-fmt`
 - [ ] Format preserving encryption: `belt-decrypt-fmt`
-- [ ] `gf128mul` software implementation
 - [ ] SIMD hardware acceleration
 
 ## Odin API

@@ -6,18 +6,7 @@ package belt
 /* Encryption and integrity control algorithms           */
 /* https://apmi.bsu.by/assets/files/std/belt-spec371.pdf */
 
-import "base:intrinsics"
 import "core:simd"
-import "core:sys/info"
-
-is_hardware_accelerated :: proc "contextless" () -> bool {
-	req_features :: info.CPU_Features{
-		.asimd,
-		.aes,
-		.pmull,
-	}
-	return info.cpu_features() >= req_features
-}
 
 poly64x2_t :: simd.u64x2
 poly64_t   :: u64
@@ -73,7 +62,7 @@ foreign _ {
 /* Intel Carry-Less Multiplication Instruction */
 /* and its Usage for Computing the GCM Mode    */
 @(require_results, enable_target_feature="neon,aes")
-gf128mul :: proc "contextless" (a, b: simd.u32x4) -> simd.u32x4 {
+gf128mulhw :: proc "contextless" (a, b: simd.u32x4) -> simd.u32x4 {
 	temp0, temp1, temp2, temp3, temp4: simd.u32x4
 	temp5, temp6, temp7, temp8, temp9: simd.u32x4
 	mask := simd.u32x4 {max(u32), 0, 0, 0}
@@ -107,23 +96,4 @@ gf128mul :: proc "contextless" (a, b: simd.u32x4) -> simd.u32x4 {
 	temp9 = simd.shl(temp3, 7)
 	temp0 = simd.bit_xor(temp0, temp9)
 	return simd.bit_xor(temp0, temp3)
-}
-
-@(private = "package")
-mul_block :: proc "contextless" (dst, src: []byte) {
-	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
-	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
-
-	when ODIN_ENDIAN == .Little {
-		if is_hardware_accelerated() {
-			dst_u32x4 := intrinsics.unaligned_load((^simd.u32x4)(raw_data(dst)))
-			src_u32x4 := intrinsics.unaligned_load((^simd.u32x4)(raw_data(src)))
-			dst_u32x4  = gf128mul(dst_u32x4, src_u32x4)
-			intrinsics.unaligned_store((^simd.u32x4)(raw_data(dst)), dst_u32x4)
-		} else {
-			ensure_contextless(false, "crypto/belt: hardware is not supported")
-		}
-	} else {
-		ensure_contextless(false, "crypto/belt: hardware is not supported")
-	}
 }
