@@ -7,6 +7,17 @@ package belt
 /* https://apmi.bsu.by/assets/files/std/belt-spec371.pdf */
 
 import "core:simd"
+import "core:sys/info"
+
+Simd_Block128 :: simd.u32x4
+is_hardware_accelerated :: proc "contextless" () -> bool {
+	req_features :: info.CPU_Features{
+		.asimd,
+		.aes,
+		.pmull,
+	}
+	return info.cpu_features() >= req_features
+}
 
 poly64x2_t :: simd.u64x2
 poly64_t   :: u64
@@ -14,13 +25,13 @@ poly128_t  :: simd.u8x16
 
 /* Alternative to _mm_clmulepi64_si128(a, b, 0x00) */
 @(require_results, enable_target_feature = "neon,aes")
-simd_vmull_low_p64 :: #force_inline proc "c" (a, b: simd.u32x4) -> simd.u32x4 {
+simd_clmul_low :: #force_inline proc "c" (a, b: simd.u32x4) -> simd.u32x4 {
 	return transmute(simd.u32x4)vmull_p64(vget_low_p64(transmute(poly64x2_t)a), vget_low_p64(transmute(poly64x2_t)b))
 }
 
 /* Alternative to _mm_clmulepi64_si128(a, b, 0x11) */
 @(require_results, enable_target_feature = "neon,aes")
-simd_vmull_high_p64 :: #force_inline proc "c" (a, b: simd.u32x4) -> simd.u32x4 {
+simd_clmul_high :: #force_inline proc "c" (a, b: simd.u32x4) -> simd.u32x4 {
 	return transmute(simd.u32x4)vmull_p64(vget_high_p64(transmute(poly64x2_t)a), vget_high_p64(transmute(poly64x2_t)b))
 }
 
@@ -66,13 +77,13 @@ gf128mulhw :: proc "contextless" (a, b: simd.u32x4) -> simd.u32x4 {
 	temp0, temp1, temp2, temp3, temp4: simd.u32x4
 	temp5, temp6, temp7, temp8, temp9: simd.u32x4
 	mask := simd.u32x4 {max(u32), 0, 0, 0}
-	temp0 = simd_vmull_low_p64(a, b)
-	temp3 = simd_vmull_high_p64(a, b)
+	temp0 = simd_clmul_low(a, b)
+	temp3 = simd_clmul_high(a, b)
 	temp1 = simd.swizzle(a, 2, 3, 0, 1)
 	temp2 = simd.swizzle(b, 2, 3, 0, 1)
 	temp1 = simd.bit_xor(temp1, a)
 	temp2 = simd.bit_xor(temp2, b)
-	temp1 = simd_vmull_low_p64(temp1, temp2)
+	temp1 = simd_clmul_low(temp1, temp2)
 	temp1 = simd.bit_xor(temp1, temp0)
 	temp1 = simd.bit_xor(temp1, temp3)
 	temp2 = simd.shuffle(temp1, simd.u32x4{}, 4, 5, 0, 1)

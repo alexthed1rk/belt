@@ -7,6 +7,16 @@ package belt
 /* https://apmi.bsu.by/assets/files/std/belt-spec371.pdf */
 
 import "core:simd/x86"
+import "core:sys/info"
+
+Simd_Block128 :: x86.__m128i
+is_hardware_accelerated :: proc "contextless" () -> bool {
+	req_features :: info.CPU_Features{
+		.pclmulqdq,
+		.sse2,
+	}
+	return info.cpu_features() >= req_features
+}
 
 /* Intel Carry-Less Multiplication Instruction */
 /* and its Usage for Computing the GCM Mode    */

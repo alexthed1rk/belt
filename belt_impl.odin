@@ -8,39 +8,6 @@ package belt
 import "base:intrinsics"
 import "base:runtime"
 import "core:encoding/endian"
-import "core:simd"
-import "core:simd/x86"
-import "core:sys/info"
-
-when ODIN_ARCH == .amd64 {
-	Simd_Block128 :: x86.__m128i
-} else {
-	Simd_Block128 :: simd.u32x4
-}
-
-is_hardware_accelerated :: proc "contextless" () -> bool {
-	/* Switch to SSE2 PCLMUL implementation */
-	when ODIN_ARCH == .amd64 {
-		req_features :: info.CPU_Features{
-			.pclmulqdq,
-			.sse2,
-		}
-		return info.cpu_features() >= req_features
-	}
-
-	/* Switch to NEON AES PMULL implementation */
-	when ODIN_ARCH == .arm64 {
-		req_features :: info.CPU_Features{
-			.asimd,
-			.aes,
-			.pmull,
-		}
-		return info.cpu_features() >= req_features
-	}
-
-	/* Default to software implementation */
-	return false
-}
 
 @(private = "file", rodata)
 spec_h05 := [256]u32 {
@@ -1575,11 +1542,24 @@ mul_block :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
 	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
 
-	if is_hardware_accelerated() {
-		dst_block := intrinsics.unaligned_load((^Simd_Block128)(raw_data(dst)))
-		src_block := intrinsics.unaligned_load((^Simd_Block128)(raw_data(src)))
-		dst_block  = gf128mulhw(dst_block, src_block)
-		intrinsics.unaligned_store((^Simd_Block128)(raw_data(dst)), dst_block)
+	when ODIN_ARCH == .amd64 || ODIN_ARCH == .arm64 {
+		if is_hardware_accelerated() {
+			dst_block := intrinsics.unaligned_load((^Simd_Block128)(raw_data(dst)))
+			src_block := intrinsics.unaligned_load((^Simd_Block128)(raw_data(src)))
+			dst_block  = gf128mulhw(dst_block, src_block)
+			intrinsics.unaligned_store((^Simd_Block128)(raw_data(dst)), dst_block)
+		} else {
+			dst_block: Block128_U32 = ---
+			src_block: Block128_U32 = ---
+			for i in 0..<BLOCK_SIZE_128_U32 {
+				src_block[i] = endian.unchecked_get_u32le(src[4 * i: 4 * i + 4])
+				dst_block[i] = endian.unchecked_get_u32le(dst[4 * i: 4 * i + 4])
+			}
+			dst_block = gf128mul(dst_block, src_block)
+			for i in 0..<BLOCK_SIZE_128_U32 {
+				endian.unchecked_put_u32le(dst[4 * i: 4 * i + 4], dst_block[i])
+			}
+		}
 	} else {
 		dst_block: Block128_U32 = ---
 		src_block: Block128_U32 = ---
