@@ -1676,7 +1676,8 @@ binary_search :: proc "contextless" (array: []u32, key: u32) -> (int, bool) #no_
 	return left, left < array_size && array[left] == key
 }
 
-/* compute `b = ceil(0.015625 * n * log2(m))` in constant time */
+/* Find `b = ceil(0.015625 * n * log2(m))` in constant time */
+@(private = "file")
 spec_find_b :: proc "contextless" (m, n: u32) -> u32 {
 	assert_contextless(m >= 2 && m <= 65536, "crypto/belt: invalid M value")
 	assert_contextless(n >= 1 && n <= 32768, "crypto/belt: invalid N value")
@@ -1686,7 +1687,7 @@ spec_find_b :: proc "contextless" (m, n: u32) -> u32 {
 	}
 
 	k := u32(8 * size_of(m) - intrinsics.count_leading_zeros(m))
-	if u32(1) << k - u32(m) > u32(m) - (u32(1) << (k - 1)) {
+	if u32(1) << k - m > m - (u32(1) << (k - 1)) {
 		k -= 1
 	}
 
