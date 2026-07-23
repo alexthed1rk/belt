@@ -253,53 +253,41 @@ spec_h :: Block256_U8 {
 	0x25, 0x2e, 0x72, 0xc2, 0x02, 0xfd, 0xce, 0x0d,
 }
 
-@(private = "file")
-spec_r1 :: Block256_U8 {
-	0xb1, 0x94, 0xba, 0xc8, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
+@(private = "file", rodata)
+spec_r1 := Block32_U8 {0xb1, 0x94, 0xba, 0xc8}
 
-@(private = "file")
-spec_r2 :: Block256_U8 {
-	0x5b, 0xe3, 0xd6, 0x12, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
+@(private = "file", rodata)
+spec_r2 := Block32_U8 {0x5b, 0xe3, 0xd6, 0x12}
 
-@(private = "file")
-spec_r3 :: Block256_U8 {
-	0x5c, 0xb0, 0xc0, 0xff, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
+@(private = "file", rodata)
+spec_r3 := Block32_U8 {0x5c, 0xb0, 0xc0, 0xff}
 
-@(private = "file")
-spec_r4 :: Block256_U8 {
-	0xe1, 0x2b, 0xdc, 0x1a, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
+@(private = "file", rodata)
+spec_r4 := Block32_U8 {0xe1, 0x2b, 0xdc, 0x1a}
 
-@(private = "file")
-spec_r5 :: Block256_U8 {
-	0xc1, 0xab, 0x76, 0x38, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
+@(private = "file", rodata)
+spec_r5 := Block32_U8 {0xc1, 0xab, 0x76, 0x38}
 
-@(private = "file")
-spec_r6 :: Block256_U8 {
-	0xf3, 0x3c, 0x65, 0x7b, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
+@(private = "file", rodata)
+spec_r6 := Block32_U8 {0xf3, 0x3c, 0x65, 0x7b}
+
+@(private = "file", rodata)
+spec_c1 := Block32_U8 {0xb1, 0x94, 0xba, 0xc8}
+
+@(private = "file", rodata)
+spec_c2 := Block32_U8 {0x0a, 0x08, 0xf5, 0x3b}
+
+@(private = "file", rodata)
+spec_c3 := Block32_U8 {0x36, 0x6d, 0x00, 0x8e}
+
+@(private = "file", rodata)
+spec_c4 := Block32_U8 {0x58, 0x4a, 0x5d, 0xe4}
+
+@(private = "file", rodata)
+spec_c5 := Block32_U8 {0x85, 0x04, 0xfa, 0x9d}
+
+@(private = "file", rodata)
+spec_c6 := Block32_U8 {0x1b, 0xb6, 0xc7, 0xac}
 
 @(private = "file", rodata)
 spec_k := [56]i32 {
@@ -347,8 +335,10 @@ spec_g21 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
 }
 
 BLOCK_SIZE_32_U8   ::  4
+BLOCK_SIZE_64_U8   ::  8
 BLOCK_SIZE_96_U8   :: 12
 BLOCK_SIZE_128_U8  :: 16
+BLOCK_SIZE_192_U8  :: 24
 BLOCK_SIZE_256_U8  :: 32
 BLOCK_SIZE_128_U32 ::  4
 BLOCK_SIZE_128_U64 ::  2
@@ -358,6 +348,7 @@ KEY_SIZE_256_U8    :: 32
 KEY_SIZE_256_U32   ::  8
 MAC_SIZE_64_U8     ::  8
 
+Block32_U8   :: #type [BLOCK_SIZE_32_U8]byte
 Block128_U8  :: #type [BLOCK_SIZE_128_U8]byte
 Block256_U8  :: #type [BLOCK_SIZE_256_U8]byte
 Block128_U32 :: #type [BLOCK_SIZE_128_U32]u32
@@ -1367,7 +1358,12 @@ derive_hash :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 encrypt_bde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
 	data_size := len(data)
 
-	ensure_contextless(data_size >= BLOCK_SIZE_128_U8 && data_size & (BLOCK_SIZE_128_U8 - 1) == 0, "crypto/belt: invalid DATA size")
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_128_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -1394,7 +1390,12 @@ encrypt_bde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 decrypt_bde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
 	data_size := len(data)
 
-	ensure_contextless(data_size >= BLOCK_SIZE_128_U8 && data_size & (BLOCK_SIZE_128_U8 - 1) == 0, "crypto/belt: invalid DATA size")
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_128_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -1421,7 +1422,12 @@ decrypt_bde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 encrypt_sde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
 	data_size := len(data)
 
-	ensure_contextless(data_size >= BLOCK_SIZE_256_U8 && data_size & (BLOCK_SIZE_128_U8 - 1) == 0, "crypto/belt: invalid DATA size")
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_256_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -1438,7 +1444,12 @@ encrypt_sde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 decrypt_sde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
 	data_size := len(data)
 
-	ensure_contextless(data_size >= BLOCK_SIZE_256_U8 && data_size & (BLOCK_SIZE_128_U8 - 1) == 0, "crypto/belt: invalid DATA size")
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_256_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -1453,8 +1464,19 @@ decrypt_sde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 
 /* Expand key {128, 192} to key {256}: belt-expand-key */
 expand_key :: proc "contextless" (dst, src: []byte) #no_bounds_check {
-	src_size := len(src)
-	ensure_contextless(len(dst) == KEY_SIZE_256_U8, "crypto/belt: invalid DST size")
+	dst_size := len(dst); src_size := len(src)
+
+	ensure_contextless(
+		src_size == KEY_SIZE_128_U8 ||
+		src_size == KEY_SIZE_192_U8 ||
+		src_size == KEY_SIZE_256_U8,
+		"crypto/belt: invalid SRC size",
+	)
+
+	ensure_contextless(
+		dst_size == KEY_SIZE_256_U8,
+		"crypto/belt: invalid DST size",
+	)
 
 	if src_size == KEY_SIZE_128_U8 {
 		copy_slice(dst[:KEY_SIZE_128_U8], src)
@@ -1469,14 +1491,26 @@ expand_key :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 		xor_slice(dst[28:32], src[20:24])
 	} else if src_size == KEY_SIZE_256_U8 {
 		copy_slice(dst, src)
-	} else {
-		ensure_contextless(false, "crypto/belt: invalid SRC size")
 	}
 }
 
 /* Derive key {128, 192, 256} from key {128, 192, 256}: belt-derive-key */
 derive_key :: proc "contextless" (dv, iv, dst, src: []byte) #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
+
+	ensure_contextless(
+		src_size == KEY_SIZE_128_U8 ||
+		src_size == KEY_SIZE_192_U8 ||
+		src_size == KEY_SIZE_256_U8,
+		"crypto/belt: invalid SRC size",
+	)
+
+	ensure_contextless(
+		dst_size == KEY_SIZE_128_U8 ||
+		dst_size == KEY_SIZE_192_U8 ||
+		dst_size == KEY_SIZE_256_U8,
+		"crypto/belt: invalid DST size",
+	)
 
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(len(dv) == BLOCK_SIZE_96_U8, "crypto/belt: invalid DV size")
@@ -1486,19 +1520,17 @@ derive_key :: proc "contextless" (dv, iv, dst, src: []byte) #no_bounds_check {
 	sblock_u8: Key256_U8 = ---
 
 	if src_size == KEY_SIZE_128_U8 && dst_size == KEY_SIZE_128_U8 {
-		rblock_u8 = spec_r1
+		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r1[:])
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_128_U8 {
-		rblock_u8 = spec_r2
+		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r2[:])
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_192_U8 {
-		rblock_u8 = spec_r3
+		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r3[:])
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_128_U8 {
-		rblock_u8 = spec_r4
+		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r4[:])
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_192_U8 {
-		rblock_u8 = spec_r5
+		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r5[:])
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_256_U8 {
-		rblock_u8 = spec_r6
-	} else {
-		ensure_contextless(false, "crypto/belt: invalid SRC or DST size")
+		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r6[:])
 	}
 
 	expand_key(sblock_u8[:], src)
@@ -1678,7 +1710,7 @@ binary_search :: proc "contextless" (array: []u32, key: u32) -> (int, bool) #no_
 
 /* Find `b = ceil(0.015625 * n * log2(m))` in constant time */
 @(private = "file")
-spec_find_b :: proc "contextless" (m, n: u32) -> u32 {
+spec_find_b :: proc "contextless" (m, n: u32) -> u32 #no_bounds_check {
 	assert_contextless(m >= 2 && m <= 65536, "crypto/belt: invalid M value")
 	assert_contextless(n >= 1 && n <= 32768, "crypto/belt: invalid N value")
 
