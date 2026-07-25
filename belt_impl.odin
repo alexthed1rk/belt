@@ -154,7 +154,7 @@ spec_h29 := [256]u32 {
 }
 
 @(private = "file", rodata)
-spec_b_keys := [288]u32 {
+spec_b_keys := [288]uint {
 	0x00b98895, 0x00b9912a, 0x00b999bf, 0x00b9a254, 0x00b9aae9, 0x00b9b37e, 0x00b9bc13, 0x00b9c4a8,
 	0x00b9cd3d, 0x00b9d5d2, 0x00b9de67, 0x00b9e6fc, 0x00b9ef91, 0x00b9f826, 0x00bfe447, 0x01794ddd,
 	0x02d66ab3, 0x02f77ea2, 0x057ec483, 0x05d7fe14, 0x05db798a, 0x05dd2a6b, 0x05dd54d6, 0x05dd7f41,
@@ -194,7 +194,7 @@ spec_b_keys := [288]u32 {
 }
 
 @(private = "file", rodata)
-spec_b_values := [288]u32 {
+spec_b_values := [288]uint {
 	0x0126, 0x024b, 0x0370, 0x0495, 0x05ba, 0x06df, 0x0804, 0x0929,
 	0x0a4e, 0x0b73, 0x0c98, 0x0dbd, 0x0ee2, 0x1007, 0x0d73, 0x0ba2,
 	0x1184, 0x14ea, 0x0c45, 0x16c0, 0x15f0, 0x07a9, 0x0f51, 0x16f9,
@@ -1694,7 +1694,7 @@ mul_block :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 }
 
 @(private = "file")
-binary_search :: proc "contextless" (array: []u32, key: u32) -> (int, bool) #no_bounds_check {
+binary_search :: proc "contextless" (array: $A/[]$T, key: T) -> (int, bool) #no_bounds_check {
 	array_size := len(array)
 	left, right := 0, array_size
 	for left < right {
@@ -1710,7 +1710,7 @@ binary_search :: proc "contextless" (array: []u32, key: u32) -> (int, bool) #no_
 
 /* Find `b = ceil(0.015625 * n * log2(m))` in constant time */
 @(private = "file")
-spec_find_b :: proc "contextless" (m, n: u32) -> u32 #no_bounds_check {
+spec_find_b :: proc "contextless" (m, n: uint) -> uint #no_bounds_check {
 	assert_contextless(m >= 2 && m <= 65536, "crypto/belt: invalid M value")
 	assert_contextless(n >= 1 && n <= 32768, "crypto/belt: invalid N value")
 
@@ -1718,8 +1718,8 @@ spec_find_b :: proc "contextless" (m, n: u32) -> u32 #no_bounds_check {
 		return spec_b_values[spec_b_key]
 	}
 
-	k := u32(8 * size_of(m) - intrinsics.count_leading_zeros(m))
-	if u32(1) << k - m > m - (u32(1) << (k - 1)) {
+	k := uint(8 * size_of(m) - intrinsics.count_leading_zeros(m))
+	if uint(1) << k - m > m - (uint(1) << (k - 1)) {
 		k -= 1
 	}
 
@@ -1747,5 +1747,5 @@ spec_find_b :: proc "contextless" (m, n: u32) -> u32 #no_bounds_check {
 	den += m4 + k4
 	den *= 20101632
 
-	return u32((num + den - 1) / den)
+	return uint((num + den - 1) / den)
 }
