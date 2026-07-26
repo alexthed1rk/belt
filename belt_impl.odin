@@ -342,9 +342,6 @@ N_MAX_INT :: 32768
 B_MIN_INT :: 1
 B_MAX_INT :: 1024
 
-BACKBUFF_SIZE_U8 ::  8 * B_MAX_INT + 8
-Backbuff_U8 :: #type [BACKBUFF_SIZE_U8]byte
-
 BLOCK_SIZE_16_U8   ::  2
 BLOCK_SIZE_32_U8   ::  4
 BLOCK_SIZE_64_U8   ::  8
@@ -360,6 +357,9 @@ KEY_SIZE_192_U8    :: 24
 KEY_SIZE_256_U8    :: 32
 KEY_SIZE_256_U32   ::  8
 MAC_SIZE_64_U8     ::  8
+
+BACKBUFF_SIZE_U8 :: 8 * B_MAX_INT + BLOCK_SIZE_64_U8
+Backbuff_U8 :: #type [BACKBUFF_SIZE_U8]byte
 
 Block32_U8   :: #type [BLOCK_SIZE_32_U8]byte
 Block128_U8  :: #type [BLOCK_SIZE_128_U8]byte
@@ -1939,8 +1939,8 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
-	block1_u8 := backbuff1[:block1_size + 8]
-	block2_u8 := backbuff2[:block2_size + 8]
+	block1_u8 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
+	block2_u8 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
 	ok: bool
 	for round := 0; round <= 2; round += 1 {
@@ -2028,8 +2028,8 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
-	block1_u8 := backbuff1[:block1_size + 8]
-	block2_u8 := backbuff2[:block2_size + 8]
+	block1_u8 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
+	block2_u8 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
 	ok: bool
 	for round := 2; round >= 0; round -= 1 {
