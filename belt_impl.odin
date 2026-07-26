@@ -337,10 +337,8 @@ spec_g21 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
 
 M_MIN_INT :: 2
 M_MAX_INT :: 65536
-
 N_MIN_INT :: 1
 N_MAX_INT :: 32768
-
 B_MIN_INT :: 1
 B_MAX_INT :: 1024
 
