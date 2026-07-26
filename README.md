@@ -8,13 +8,13 @@ Specification: [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://a
 Use `test_belt.bat` or `test_belt.sh`
 
 ## TODO
-- [ ] Format preserving encryption: `belt-encrypt-fmt`
-- [ ] Format preserving encryption: `belt-decrypt-fmt`
 - [ ] SIMD hardware acceleration
 
 ## Odin API
 | Procedure | Description |
 | :--- | :--- |
+| `encrypt_fmt` | Format preserving encryption: `belt-encrypt-fmt` |
+| `decrypt_fmt` | Format preserving encryption: `belt-decrypt-fmt` |
 | `seal_dwp` | Authenticated encryption: `belt-seal-dwp` |
 | `open_dwp` | Authenticated encryption: `belt-open-dwp` |
 | `seal_che` | Authenticated encryption: `belt-seal-che` |

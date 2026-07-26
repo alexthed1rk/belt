@@ -1177,3 +1177,213 @@ test_derive_key :: proc (t: ^testing.T) {
 
 	free_all(context.temp_allocator)
 }
+
+@(test)
+test_encrypt_fmt :: proc (t: ^testing.T) {
+	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
+	iv_string  := "be32971343fc9a48a02a885f194b09a1"
+	truth_ok   := true
+
+	m1 := 10; n1 :: 10
+	block_data1 := [n1]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, }
+	truth_data1 := [n1]u16 { 6, 9, 3, 4, 7, 7, 0, 3, 5, 2, }
+
+	m2 := 58; n2 :: 21
+	block_data2 := [n2]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, }
+	truth_data2 := [n2]u16 { 7, 4, 6, 21, 49, 55, 24, 23, 22, 50, 27, 39, 24, 24, 17, 32, 57, 43, 26, 5, 29, }
+
+	m3 := 65536; n3 :: 17
+	block_data3 := [n3]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, }
+	truth_data3 := [n3]u16 { 14290, 31359, 58054, 51842, 44653, 34762, 28652, 48929, 6541, 13788, 7784, 46182, 61098, 43056, 3564, 21568, 63878, }
+
+	key_data, _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
+	iv_data,  _ := hex.decode(transmute([]byte)iv_string,  context.temp_allocator)
+
+	check_data1: [n1]u16 = ---
+	check_data2: [n2]u16 = ---
+	check_data3: [n3]u16 = ---
+
+	copy_slice(check_data1[:], block_data1[:])
+	copy_slice(check_data2[:], block_data2[:])
+	copy_slice(check_data3[:], block_data3[:])
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	check_ok1 := encrypt_fmt(ctx, m1, iv_data, check_data1[:])
+	check_ok2 := encrypt_fmt(ctx, m2, iv_data, check_data2[:])
+	check_ok3 := encrypt_fmt(ctx, m3, iv_data, check_data3[:])
+
+	testing.expectf(
+		t,
+		check_data1 == truth_data1,
+		"crypto/belt: expected TRUTH: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
+		truth_data1,
+		block_data1,
+		iv_string,
+		key_string,
+		check_data1,
+	)
+
+	testing.expectf(
+		t,
+		check_ok1 == truth_ok,
+		"crypto/belt: expected OK: %t for encrypt_fmt(%v, %s, %s), but got %t instead",
+		truth_ok,
+		block_data1,
+		iv_string,
+		key_string,
+		check_ok1,
+	)
+
+	testing.expectf(
+		t,
+		check_data2 == truth_data2,
+		"crypto/belt: expected TRUTH: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
+		truth_data2,
+		block_data2,
+		iv_string,
+		key_string,
+		check_data2,
+	)
+
+	testing.expectf(
+		t,
+		check_ok2 == truth_ok,
+		"crypto/belt: expected OK: %t for encrypt_fmt(%v, %s, %s), but got %t instead",
+		truth_ok,
+		block_data2,
+		iv_string,
+		key_string,
+		check_ok2,
+	)
+
+	testing.expectf(
+		t,
+		check_data3 == truth_data3,
+		"crypto/belt: expected TRUTH: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
+		truth_data3,
+		block_data3,
+		iv_string,
+		key_string,
+		check_data3,
+	)
+
+	testing.expectf(
+		t,
+		check_ok3 == truth_ok,
+		"crypto/belt: expected OK: %t for encrypt_fmt(%v, %s, %s), but got %t instead",
+		truth_ok,
+		block_data3,
+		iv_string,
+		key_string,
+		check_ok3,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
+test_decrypt_fmt :: proc (t: ^testing.T) {
+	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
+	iv_string  := "be32971343fc9a48a02a885f194b09a1"
+	truth_ok   := true
+
+	m1 := 10; n1 :: 10
+	block_data1 := [n1]u16 { 6, 9, 3, 4, 7, 7, 0, 3, 5, 2, }
+	truth_data1 := [n1]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, }
+
+	m2 := 58; n2 :: 21
+	block_data2 := [n2]u16 { 7, 4, 6, 21, 49, 55, 24, 23, 22, 50, 27, 39, 24, 24, 17, 32, 57, 43, 26, 5, 29, }
+	truth_data2 := [n2]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, }
+
+	m3 := 65536; n3 :: 17
+	block_data3 := [n3]u16 { 14290, 31359, 58054, 51842, 44653, 34762, 28652, 48929, 6541, 13788, 7784, 46182, 61098, 43056, 3564, 21568, 63878, }
+	truth_data3 := [n3]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, }
+
+	key_data, _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
+	iv_data,  _ := hex.decode(transmute([]byte)iv_string,  context.temp_allocator)
+
+	check_data1: [n1]u16 = ---
+	check_data2: [n2]u16 = ---
+	check_data3: [n3]u16 = ---
+
+	copy_slice(check_data1[:], block_data1[:])
+	copy_slice(check_data2[:], block_data2[:])
+	copy_slice(check_data3[:], block_data3[:])
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	check_ok1 := decrypt_fmt(ctx, m1, iv_data, check_data1[:])
+	check_ok2 := decrypt_fmt(ctx, m2, iv_data, check_data2[:])
+	check_ok3 := decrypt_fmt(ctx, m3, iv_data, check_data3[:])
+
+	testing.expectf(
+		t,
+		check_data1 == truth_data1,
+		"crypto/belt: expected TRUTH: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
+		truth_data1,
+		block_data1,
+		iv_string,
+		key_string,
+		check_data1,
+	)
+
+	testing.expectf(
+		t,
+		check_ok1 == truth_ok,
+		"crypto/belt: expected OK: %t for decrypt_fmt(%v, %s, %s), but got %t instead",
+		truth_ok,
+		block_data1,
+		iv_string,
+		key_string,
+		check_ok1,
+	)
+
+	testing.expectf(
+		t,
+		check_data2 == truth_data2,
+		"crypto/belt: expected TRUTH: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
+		truth_data2,
+		block_data2,
+		iv_string,
+		key_string,
+		check_data2,
+	)
+
+	testing.expectf(
+		t,
+		check_ok2 == truth_ok,
+		"crypto/belt: expected OK: %t for decrypt_fmt(%v, %s, %s), but got %t instead",
+		truth_ok,
+		block_data2,
+		iv_string,
+		key_string,
+		check_ok2,
+	)
+
+	testing.expectf(
+		t,
+		check_data3 == truth_data3,
+		"crypto/belt: expected TRUTH: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
+		truth_data3,
+		block_data3,
+		iv_string,
+		key_string,
+		check_data3,
+	)
+
+	testing.expectf(
+		t,
+		check_ok3 == truth_ok,
+		"crypto/belt: expected OK: %t for decrypt_fmt(%v, %s, %s), but got %t instead",
+		truth_ok,
+		block_data3,
+		iv_string,
+		key_string,
+		check_ok3,
+	)
+
+	free_all(context.temp_allocator)
+}

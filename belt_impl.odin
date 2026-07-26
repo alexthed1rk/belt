@@ -8,6 +8,7 @@ package belt
 import "base:intrinsics"
 import "base:runtime"
 import "core:encoding/endian"
+import "core:math/big"
 
 @(private = "file", rodata)
 spec_h05 := [256]u32 {
@@ -154,7 +155,7 @@ spec_h29 := [256]u32 {
 }
 
 @(private = "file", rodata)
-spec_b_keys := [288]uint {
+spec_b_keys := [288]int {
 	0x00b98895, 0x00b9912a, 0x00b999bf, 0x00b9a254, 0x00b9aae9, 0x00b9b37e, 0x00b9bc13, 0x00b9c4a8,
 	0x00b9cd3d, 0x00b9d5d2, 0x00b9de67, 0x00b9e6fc, 0x00b9ef91, 0x00b9f826, 0x00bfe447, 0x01794ddd,
 	0x02d66ab3, 0x02f77ea2, 0x057ec483, 0x05d7fe14, 0x05db798a, 0x05dd2a6b, 0x05dd54d6, 0x05dd7f41,
@@ -194,7 +195,7 @@ spec_b_keys := [288]uint {
 }
 
 @(private = "file", rodata)
-spec_b_values := [288]uint {
+spec_b_values := [288]int {
 	0x0126, 0x024b, 0x0370, 0x0495, 0x05ba, 0x06df, 0x0804, 0x0929,
 	0x0a4e, 0x0b73, 0x0c98, 0x0dbd, 0x0ee2, 0x1007, 0x0d73, 0x0ba2,
 	0x1184, 0x14ea, 0x0c45, 0x16c0, 0x15f0, 0x07a9, 0x0f51, 0x16f9,
@@ -334,6 +335,16 @@ spec_g21 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
 	return result
 }
 
+spec_m_min :: 2
+spec_m_max :: 65536
+
+spec_n_min :: 1
+spec_n_max :: 32768
+
+spec_b_min :: 1
+spec_b_max :: 1024
+
+BLOCK_SIZE_16_U8   ::  2
 BLOCK_SIZE_32_U8   ::  4
 BLOCK_SIZE_64_U8   ::  8
 BLOCK_SIZE_96_U8   :: 12
@@ -342,6 +353,7 @@ BLOCK_SIZE_192_U8  :: 24
 BLOCK_SIZE_256_U8  :: 32
 BLOCK_SIZE_128_U32 ::  4
 BLOCK_SIZE_128_U64 ::  2
+BLOCK_SIZE_192_U64 ::  3
 KEY_SIZE_128_U8    :: 16
 KEY_SIZE_192_U8    :: 24
 KEY_SIZE_256_U8    :: 32
@@ -353,6 +365,7 @@ Block128_U8  :: #type [BLOCK_SIZE_128_U8]byte
 Block256_U8  :: #type [BLOCK_SIZE_256_U8]byte
 Block128_U32 :: #type [BLOCK_SIZE_128_U32]u32
 Block128_U64 :: #type [BLOCK_SIZE_128_U64]u64
+Block192_U64 :: #type [BLOCK_SIZE_192_U64]u64
 Key128_U8    :: #type [KEY_SIZE_128_U8]byte
 Key192_U8    :: #type [KEY_SIZE_192_U8]byte
 Key256_U8    :: #type [KEY_SIZE_256_U8]byte
@@ -1710,16 +1723,16 @@ binary_search :: proc "contextless" (array: $A/[]$T, key: T) -> (int, bool) #no_
 
 /* Find `b = ceil(0.015625 * n * log2(m))` in constant time */
 @(private = "file")
-spec_find_b :: proc "contextless" (m, n: uint) -> uint #no_bounds_check {
-	assert_contextless(m >= 2 && m <= 65536, "crypto/belt: invalid M value")
-	assert_contextless(n >= 1 && n <= 32768, "crypto/belt: invalid N value")
+spec_find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
+	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	assert_contextless(n >= spec_n_min && n <= spec_n_max, "crypto/belt: invalid N value")
 
 	if spec_b_key, ok := binary_search(spec_b_keys[:], m << 15 | n); ok {
 		return spec_b_values[spec_b_key]
 	}
 
 	k := uint(8 * size_of(m) - intrinsics.count_leading_zeros(m))
-	if uint(1) << k - m > m - (uint(1) << (k - 1)) {
+	if uint(1) << k - uint(m) > uint(m) - (uint(1) << (k - 1)) {
 		k -= 1
 	}
 
@@ -1747,5 +1760,320 @@ spec_find_b :: proc "contextless" (m, n: uint) -> uint #no_bounds_check {
 	den += m4 + k4
 	den *= 20101632
 
-	return uint((num + den - 1) / den)
+	return int((num + den - 1) / den)
+}
+
+@(private = "file")
+spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allocator) -> bool #no_bounds_check {
+	dst_size := len(dst); src_size := len(src)
+
+	assert_contextless(dst_size >= 8 * spec_b_min && dst_size <= 8 * spec_b_max, "crypto/belt: invalid DST size")
+	assert_contextless(src_size >= spec_m_min && src_size <= spec_m_max, "crypto/belt: invalid SRC size")
+	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+
+	pow := 8 * dst_size
+	round, mod, ui, mi: big.Int
+	defer big.internal_int_destroy(&round, &mod, &ui, &mi)
+
+	err: big.Error
+	err = big.internal_int_power_of_two(&mod, pow, allocator);                                if err != .None { return false }
+	err = big.internal_int_set_from_integer(&mi, m, false, allocator);                        if err != .None { return false }
+
+	stream := src
+	err = big.internal_int_set_from_integer(&round, stream[src_size - 1], false, allocator);  if err != .None { return false }
+	for stream_index := src_size - 2; stream_index >= 0; stream_index -= 1 {
+		err = big.internal_int_set_from_integer(&ui, stream[stream_index], false, allocator); if err != .None { return false }
+		err = big.internal_int_mulmod(&round, &round, &mi, &mod, allocator);                  if err != .None { return false }
+		err = big.internal_int_addmod(&round, &round, &ui, &mod, allocator);                  if err != .None { return false }
+	}
+
+	intrinsics.mem_zero(raw_data(dst), dst_size)
+	err = big.int_to_bytes_little(&round, dst, false, allocator)
+	return err == .None
+}
+
+@(private = "file")
+spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
+	dst_size := len(dst); src_size := len(src)
+
+	assert_contextless(src_size >= 8 * spec_b_min && src_size <= 8 * spec_b_max, "crypto/belt: invalid SRC size")
+	assert_contextless(dst_size >= spec_m_min && dst_size <= spec_m_max, "crypto/belt: invalid DST size")
+	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+
+	round, ui, mi: big.Int
+	defer big.internal_int_destroy(&round, &ui, &mi)
+
+	err: big.Error
+	err = big.int_from_bytes_little(&round, src, false, allocator);    if err != .None { return false }
+	err = big.internal_int_set_from_integer(&mi, m, false, allocator); if err != .None { return false }
+
+	ui_u16: u16
+	for &stream in dst {
+		err = big.internal_int_mod(&ui, &round, &mi, allocator);       if err != .None { return false }
+		ui_u16, err = big.internal_int_get(&ui, u16);                  if err != .None { return false }
+		stream = u16((uint(stream) + uint(ui_u16)) % uint(m))
+		err = big.internal_int_div(&round, &round, &mi, allocator);    if err != .None { return false }
+	}
+	return true
+}
+
+@(private = "file")
+spec_bin2str_sub :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
+	dst_size := len(dst); src_size := len(src)
+
+	assert_contextless(src_size >= 8 * spec_b_min && src_size <= 8 * spec_b_max, "crypto/belt: invalid SRC size")
+	assert_contextless(dst_size >= spec_m_min && dst_size <= spec_m_max, "crypto/belt: invalid DST size")
+	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+
+	round, ui, mi: big.Int
+	defer big.internal_int_destroy(&round, &ui, &mi)
+
+	err: big.Error
+	err = big.int_from_bytes_little(&round, src, false, allocator);    if err != .None { return false }
+	err = big.internal_int_set_from_integer(&mi, m, false, allocator); if err != .None { return false }
+
+	ui_u16: u16
+	for &stream in dst {
+		err = big.internal_int_mod(&ui, &round, &mi, allocator);       if err != .None { return false }
+		ui_u16, err = big.internal_int_get(&ui, u16);                  if err != .None { return false }
+		stream = u16((uint(stream) + uint(m) - uint(ui_u16)) % uint(m))
+		err = big.internal_int_div(&round, &round, &mi, allocator);    if err != .None { return false }
+	}
+	return true
+}
+
+@(private = "file")
+spec_encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check {
+	assert_contextless(len(data) == BLOCK_SIZE_192_U8, "crypto/belt: invalid DATA size")
+	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	a :: 0; b :: 1; c :: 2
+	rblock_u8: Block128_U8 = ---
+	for round := 1; round <= 3; round += 1 {
+		u128_block(rblock_u8[:], u128(round))
+		encrypt_block(ctx, data[BLOCK_SIZE_64_U8:])
+		xor_block(data[BLOCK_SIZE_64_U8:], rblock_u8[:])
+
+		block: Block192_U64 = ---
+		for i in 0..<BLOCK_SIZE_192_U64 {
+			block[i] = endian.unchecked_get_u64le(data[8 * i: 8 * i + 8])
+		}
+
+		block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
+		block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
+		block[c] ~= block[a]
+
+		for i in 0..<BLOCK_SIZE_192_U64 {
+			endian.unchecked_put_u64le(data[8 * i: 8 * i + 8], block[i])
+		}
+	}
+}
+
+@(private = "file")
+spec_roundf :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	assert_contextless(
+		data_size >= BLOCK_SIZE_128_U8 &&
+		data_size & (BLOCK_SIZE_64_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
+	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	if data_size == BLOCK_SIZE_128_U8 {
+		encrypt_block(ctx, data)
+	} else if data_size == BLOCK_SIZE_192_U8 {
+		spec_encrypt_block32(ctx, data)
+	} else if data_size >= BLOCK_SIZE_256_U8 {
+		encrypt_wide_block(ctx, data)
+	}
+}
+
+/* Format preserving encryption: belt-encrypt-fmt */
+encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator := context.allocator) -> bool #no_bounds_check {
+	data_size := len(data); iv_size := len(iv)
+
+	ensure_contextless(data_size >= spec_m_min && data_size <= spec_m_max, "crypto/belt: invalid DATA size")
+	ensure_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	spec_s1: Block32_U8 = ---
+	spec_s6: Block32_U8 = ---
+
+	endian.unchecked_put_u16le(spec_s1[:BLOCK_SIZE_16_U8], u16(m))
+	endian.unchecked_put_u16le(spec_s1[BLOCK_SIZE_16_U8:], u16(data_size))
+	copy_slice(spec_s6[:], spec_s1[:])
+
+	spec_c := [?][]byte {
+		spec_c1[:],
+		spec_c2[:],
+		spec_c3[:],
+		spec_c4[:],
+		spec_c5[:],
+		spec_c6[:],
+	}
+
+	spec_s := [?][]byte {
+		spec_s1[:],
+		iv[:BLOCK_SIZE_32_U8],
+		iv[BLOCK_SIZE_32_U8:BLOCK_SIZE_64_U8],
+		iv[BLOCK_SIZE_64_U8:BLOCK_SIZE_96_U8],
+		iv[BLOCK_SIZE_96_U8:],
+		spec_s6[:],
+	}
+
+	spec_n1 := int((uint(data_size) + 1) / 2)
+	spec_n2 := int(data_size / 2)
+
+	spec_b1 := spec_find_b(m, spec_n1)
+	spec_b2 := spec_find_b(m, spec_n2)
+
+	spec_r1 := data[:spec_n1]
+	spec_r2 := data[spec_n1:]
+
+	block1_u8: []byte = ---
+	block2_u8: []byte = ---
+	err: runtime.Allocator_Error
+
+	block1_size := 8 * spec_b1
+	block2_size := 8 * spec_b2
+
+	block1_u8, err = make([]byte, block1_size + 8, allocator); if err != .None { return false }
+	defer delete(block1_u8)
+
+	block2_u8, err = make([]byte, block2_size + 8, allocator); if err != .None { return false }
+	defer delete(block2_u8)
+
+	ok: bool
+	for round := 0; round <= 2; round += 1 {
+		if ok = spec_str2bin(m, block2_u8[:block2_size], spec_r2, allocator); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+
+		copy_slice(block2_u8[block2_size + BLOCK_SIZE_32_U8:], spec_s[2 * round])
+		copy_slice(block2_u8[block2_size: block2_size + BLOCK_SIZE_32_U8], spec_c[2 * round])
+		spec_roundf(ctx, block2_u8[:])
+
+		if ok = spec_bin2str_add(m, spec_r1, block2_u8[:]); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+
+		if ok = spec_str2bin(m, block1_u8[:block1_size], spec_r1, allocator); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+
+		copy_slice(block1_u8[block1_size + BLOCK_SIZE_32_U8:], spec_s[2 * round + 1])
+		copy_slice(block1_u8[block1_size: block1_size + BLOCK_SIZE_32_U8], spec_c[2 * round + 1])
+		spec_roundf(ctx, block1_u8[:])
+
+		if ok = spec_bin2str_add(m, spec_r2, block1_u8[:]); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+	}
+
+	return true
+}
+
+/* Format preserving encryption: belt-decrypt-fmt */
+decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator := context.allocator) -> bool #no_bounds_check {
+	data_size := len(data); iv_size := len(iv)
+
+	ensure_contextless(data_size >= spec_m_min && data_size <= spec_m_max, "crypto/belt: invalid DATA size")
+	ensure_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	spec_s1: Block32_U8 = ---
+	spec_s6: Block32_U8 = ---
+
+	endian.unchecked_put_u16le(spec_s1[:BLOCK_SIZE_16_U8], u16(m))
+	endian.unchecked_put_u16le(spec_s1[BLOCK_SIZE_16_U8:], u16(data_size))
+	copy_slice(spec_s6[:], spec_s1[:])
+
+	spec_c := [?][]byte {
+		spec_c1[:],
+		spec_c2[:],
+		spec_c3[:],
+		spec_c4[:],
+		spec_c5[:],
+		spec_c6[:],
+	}
+
+	spec_s := [?][]byte {
+		spec_s1[:],
+		iv[:BLOCK_SIZE_32_U8],
+		iv[BLOCK_SIZE_32_U8:BLOCK_SIZE_64_U8],
+		iv[BLOCK_SIZE_64_U8:BLOCK_SIZE_96_U8],
+		iv[BLOCK_SIZE_96_U8:],
+		spec_s6[:],
+	}
+
+	spec_n1 := int((uint(data_size) + 1) / 2)
+	spec_n2 := int(data_size / 2)
+
+	spec_b1 := spec_find_b(m, spec_n1)
+	spec_b2 := spec_find_b(m, spec_n2)
+
+	spec_r1 := data[:spec_n1]
+	spec_r2 := data[spec_n1:]
+
+	block1_u8: []byte = ---
+	block2_u8: []byte = ---
+	err: runtime.Allocator_Error
+
+	block1_size := 8 * spec_b1
+	block2_size := 8 * spec_b2
+
+	block1_u8, err = make([]byte, block1_size + 8, allocator); if err != .None { return false }
+	defer delete(block1_u8)
+
+	block2_u8, err = make([]byte, block2_size + 8, allocator); if err != .None { return false }
+	defer delete(block2_u8)
+
+	ok: bool
+	for round := 2; round >= 0; round -= 1 {
+		if ok = spec_str2bin(m, block1_u8[:block1_size], spec_r1, allocator); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+
+		copy_slice(block1_u8[block1_size + BLOCK_SIZE_32_U8:], spec_s[2 * round + 1])
+		copy_slice(block1_u8[block1_size: block1_size + BLOCK_SIZE_32_U8], spec_c[2 * round + 1])
+		spec_roundf(ctx, block1_u8[:])
+
+		if ok = spec_bin2str_sub(m, spec_r2, block1_u8[:]); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+
+		if ok = spec_str2bin(m, block2_u8[:block2_size], spec_r2, allocator); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+
+		copy_slice(block2_u8[block2_size + BLOCK_SIZE_32_U8:], spec_s[2 * round])
+		copy_slice(block2_u8[block2_size: block2_size + BLOCK_SIZE_32_U8], spec_c[2 * round])
+		spec_roundf(ctx, block2_u8[:])
+
+		if ok = spec_bin2str_sub(m, spec_r1, block2_u8[:]); !ok {
+			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
+			intrinsics.mem_zero(raw_data(iv), iv_size)
+			return false
+		}
+	}
+
+	return true
 }
