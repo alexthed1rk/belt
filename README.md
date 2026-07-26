@@ -8,6 +8,7 @@ Specification: [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://a
 Use `test_belt.bat` or `test_belt.sh`
 
 ## TODO
+- [ ] allocation free format-preserving encryption
 - [ ] SIMD hardware acceleration
 
 ## Odin API
