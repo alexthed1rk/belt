@@ -335,14 +335,17 @@ spec_g21 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
 	return result
 }
 
-spec_m_min :: 2
-spec_m_max :: 65536
+M_MIN_INT :: 2
+M_MAX_INT :: 65536
 
-spec_n_min :: 1
-spec_n_max :: 32768
+N_MIN_INT :: 1
+N_MAX_INT :: 32768
 
-spec_b_min :: 1
-spec_b_max :: 1024
+B_MIN_INT :: 1
+B_MAX_INT :: 1024
+
+BACKBUFF_SIZE_U8 ::  8 * B_MAX_INT + 8
+Backbuff_U8 :: #type [BACKBUFF_SIZE_U8]byte
 
 BLOCK_SIZE_16_U8   ::  2
 BLOCK_SIZE_32_U8   ::  4
@@ -1724,8 +1727,8 @@ binary_search :: proc "contextless" (array: $A/[]$T, key: T) -> (int, bool) #no_
 /* Find `b = ceil(0.015625 * n * log2(m))` in constant time */
 @(private = "file")
 spec_find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
-	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
-	assert_contextless(n >= spec_n_min && n <= spec_n_max, "crypto/belt: invalid N value")
+	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(n >= N_MIN_INT && n <= N_MAX_INT, "crypto/belt: invalid N value")
 
 	if spec_b_key, ok := binary_search(spec_b_keys[:], m << 15 | n); ok {
 		return spec_b_values[spec_b_key]
@@ -1767,9 +1770,9 @@ spec_find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
 spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(dst_size >= 8 * spec_b_min && dst_size <= 8 * spec_b_max, "crypto/belt: invalid DST size")
-	assert_contextless(src_size >= spec_m_min && src_size <= spec_m_max, "crypto/belt: invalid SRC size")
-	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	assert_contextless(dst_size >= 8 * B_MIN_INT && dst_size <= 8 * B_MAX_INT, "crypto/belt: invalid DST size")
+	assert_contextless(src_size >= M_MIN_INT && src_size <= M_MAX_INT, "crypto/belt: invalid SRC size")
+	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 
 	pow := 8 * dst_size
 	round, mod, ui, mi: big.Int
@@ -1796,9 +1799,9 @@ spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allo
 spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(src_size >= 8 * spec_b_min && src_size <= 8 * spec_b_max, "crypto/belt: invalid SRC size")
-	assert_contextless(dst_size >= spec_m_min && dst_size <= spec_m_max, "crypto/belt: invalid DST size")
-	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	assert_contextless(src_size >= 8 * B_MIN_INT && src_size <= 8 * B_MAX_INT, "crypto/belt: invalid SRC size")
+	assert_contextless(dst_size >= M_MIN_INT && dst_size <= M_MAX_INT, "crypto/belt: invalid DST size")
+	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 
 	round, ui, mi: big.Int
 	defer big.internal_int_destroy(&round, &ui, &mi)
@@ -1821,9 +1824,9 @@ spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.
 spec_bin2str_sub :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(src_size >= 8 * spec_b_min && src_size <= 8 * spec_b_max, "crypto/belt: invalid SRC size")
-	assert_contextless(dst_size >= spec_m_min && dst_size <= spec_m_max, "crypto/belt: invalid DST size")
-	assert_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	assert_contextless(src_size >= 8 * B_MIN_INT && src_size <= 8 * B_MAX_INT, "crypto/belt: invalid SRC size")
+	assert_contextless(dst_size >= M_MIN_INT && dst_size <= M_MAX_INT, "crypto/belt: invalid DST size")
+	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 
 	round, ui, mi: big.Int
 	defer big.internal_int_destroy(&round, &ui, &mi)
@@ -1894,8 +1897,8 @@ spec_roundf :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check 
 encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator := context.allocator) -> bool #no_bounds_check {
 	data_size := len(data); iv_size := len(iv)
 
-	ensure_contextless(data_size >= spec_m_min && data_size <= spec_m_max, "crypto/belt: invalid DATA size")
-	ensure_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	ensure_contextless(data_size >= M_MIN_INT && data_size <= M_MAX_INT, "crypto/belt: invalid DATA size")
+	ensure_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -1936,8 +1939,8 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	block1_size := 8 * spec_b1
 	block2_size := 8 * spec_b2
 
-	backbuff1: [8 * spec_b_max + 8]byte = ---
-	backbuff2: [8 * spec_b_max + 8]byte = ---
+	backbuff1: Backbuff_U8 = ---
+	backbuff2: Backbuff_U8 = ---
 	block1_u8 := backbuff1[:block1_size + 8]
 	block2_u8 := backbuff2[:block2_size + 8]
 
@@ -1983,8 +1986,8 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator := context.allocator) -> bool #no_bounds_check {
 	data_size := len(data); iv_size := len(iv)
 
-	ensure_contextless(data_size >= spec_m_min && data_size <= spec_m_max, "crypto/belt: invalid DATA size")
-	ensure_contextless(m >= spec_m_min && m <= spec_m_max, "crypto/belt: invalid M value")
+	ensure_contextless(data_size >= M_MIN_INT && data_size <= M_MAX_INT, "crypto/belt: invalid DATA size")
+	ensure_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -2025,8 +2028,8 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	block1_size := 8 * spec_b1
 	block2_size := 8 * spec_b2
 
-	backbuff1: [8 * spec_b_max + 8]byte = ---
-	backbuff2: [8 * spec_b_max + 8]byte = ---
+	backbuff1: Backbuff_U8 = ---
+	backbuff2: Backbuff_U8 = ---
 	block1_u8 := backbuff1[:block1_size + 8]
 	block2_u8 := backbuff2[:block2_size + 8]
 
