@@ -1933,18 +1933,13 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	spec_r1 := data[:spec_n1]
 	spec_r2 := data[spec_n1:]
 
-	block1_u8: []byte = ---
-	block2_u8: []byte = ---
-	err: runtime.Allocator_Error
-
 	block1_size := 8 * spec_b1
 	block2_size := 8 * spec_b2
 
-	block1_u8, err = make([]byte, block1_size + 8, allocator); if err != .None { return false }
-	defer delete(block1_u8)
-
-	block2_u8, err = make([]byte, block2_size + 8, allocator); if err != .None { return false }
-	defer delete(block2_u8)
+	backbuff1: [8 * spec_b_max + 8]byte = ---
+	backbuff2: [8 * spec_b_max + 8]byte = ---
+	block1_u8 := backbuff1[:block1_size + 8]
+	block2_u8 := backbuff2[:block2_size + 8]
 
 	ok: bool
 	for round := 0; round <= 2; round += 1 {
@@ -2027,18 +2022,13 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	spec_r1 := data[:spec_n1]
 	spec_r2 := data[spec_n1:]
 
-	block1_u8: []byte = ---
-	block2_u8: []byte = ---
-	err: runtime.Allocator_Error
-
 	block1_size := 8 * spec_b1
 	block2_size := 8 * spec_b2
 
-	block1_u8, err = make([]byte, block1_size + 8, allocator); if err != .None { return false }
-	defer delete(block1_u8)
-
-	block2_u8, err = make([]byte, block2_size + 8, allocator); if err != .None { return false }
-	defer delete(block2_u8)
+	backbuff1: [8 * spec_b_max + 8]byte = ---
+	backbuff2: [8 * spec_b_max + 8]byte = ---
+	block1_u8 := backbuff1[:block1_size + 8]
+	block2_u8 := backbuff2[:block2_size + 8]
 
 	ok: bool
 	for round := 2; round >= 0; round -= 1 {
