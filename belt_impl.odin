@@ -342,6 +342,7 @@ N_MAX_INT :: 32768
 B_MIN_INT :: 1
 B_MAX_INT :: 1024
 
+BITS_PER_BYTE      ::  8
 BLOCK_SIZE_16_U8   ::  2
 BLOCK_SIZE_32_U8   ::  4
 BLOCK_SIZE_64_U8   ::  8
@@ -358,7 +359,7 @@ KEY_SIZE_256_U8    :: 32
 KEY_SIZE_256_U32   ::  8
 MAC_SIZE_64_U8     ::  8
 
-BACKBUFF_SIZE_U8 :: 8 * B_MAX_INT + BLOCK_SIZE_64_U8
+BACKBUFF_SIZE_U8 :: BITS_PER_BYTE * B_MAX_INT + BLOCK_SIZE_64_U8
 Backbuff_U8 :: #type [BACKBUFF_SIZE_U8]byte
 
 Block32_U8   :: #type [BLOCK_SIZE_32_U8]byte
@@ -382,7 +383,7 @@ init :: proc "contextless" (ctx: ^Context, key: []byte) #no_bounds_check {
 	ensure_contextless(len(key) == KEY_SIZE_256_U8, "crypto/belt: invalid KEY size")
 
 	for i in 0..<KEY_SIZE_256_U32 {
-		ctx.key[i] = endian.unchecked_get_u32le(key[4 * i: 4 * i + 4])
+		ctx.key[i] = endian.unchecked_get_u32le(key[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	ctx.is_initialized = true
@@ -423,12 +424,12 @@ inc_block :: proc "contextless" (data: []byte) #no_bounds_check {
 
 	block: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[4 * i: 4 * i + 4])
+		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	block = transmute(Block128_U32)(transmute(u128)block + 1)
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[4 * i: 4 * i + 4], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
@@ -438,7 +439,7 @@ u128_block :: proc "contextless" (data: []byte, value: u128) #no_bounds_check {
 
 	block := transmute(Block128_U32)value
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[4 * i: 4 * i + 4], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
@@ -449,7 +450,7 @@ encrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 
 	block: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[4 * i: 4 * i + 4])
+		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	a :: 0; b :: 1; c :: 2; d :: 3
@@ -476,7 +477,7 @@ encrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
 
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[4 * i: 4 * i + 4], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
@@ -487,7 +488,7 @@ decrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 
 	block: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[4 * i: 4 * i + 4])
+		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	a :: 0; b :: 1; c :: 2; d :: 3
@@ -514,7 +515,7 @@ decrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	block[a] ~= block[d]; block[d] ~= block[a]; block[a] ~= block[d]
 
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[4 * i: 4 * i + 4], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
@@ -844,7 +845,7 @@ spec_φ1 :: proc "contextless" (data: []byte) #no_bounds_check {
 
 	block: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[4 * i: 4 * i + 4])
+		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	a :: 0; b :: 1; c :: 2; d :: 3
@@ -854,7 +855,7 @@ spec_φ1 :: proc "contextless" (data: []byte) #no_bounds_check {
 	block[d] ~= block[a]
 
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[4 * i: 4 * i + 4], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
@@ -864,7 +865,7 @@ spec_φ2 :: proc "contextless" (data: []byte) #no_bounds_check {
 
 	block: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[4 * i: 4 * i + 4])
+		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	a :: 0; b :: 1; c :: 2; d :: 3
@@ -874,7 +875,7 @@ spec_φ2 :: proc "contextless" (data: []byte) #no_bounds_check {
 	block[a] ~= block[b]
 
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[4 * i: 4 * i + 4], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
@@ -935,8 +936,8 @@ seal_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	mblock_u8: Block128_U8 = ---
 	mac_u8  := spec_t
 
-	aad_mod  := u64((8 * u128(aad_size))  & u128(max(u64) - 1))
-	data_mod := u64((8 * u128(data_size)) & u128(max(u64) - 1))
+	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
 	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
 
@@ -1013,8 +1014,8 @@ open_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	mblock_u8: Block128_U8 = ---
 	mac_u8  := spec_t
 
-	aad_mod  := u64((8 * u128(aad_size))  & u128(max(u64) - 1))
-	data_mod := u64((8 * u128(data_size)) & u128(max(u64) - 1))
+	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
 	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
 
@@ -1099,8 +1100,8 @@ seal_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	cblock_u8 := spec_c
 	mac_u8    := spec_t
 
-	aad_mod  := u64((8 * u128(aad_size))  & u128(max(u64) - 1))
-	data_mod := u64((8 * u128(data_size)) & u128(max(u64) - 1))
+	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
 	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
 
@@ -1181,8 +1182,8 @@ open_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	cblock_u8 := spec_c
 	mac_u8    := spec_t
 
-	aad_mod  := u64((8 * u128(aad_size))  & u128(max(u64) - 1))
-	data_mod := u64((8 * u128(data_size)) & u128(max(u64) - 1))
+	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
 	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
 
@@ -1345,7 +1346,7 @@ derive_hash :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	hblock_u8 := spec_h
 	tblock_u8: Block128_U8 = ---
 	rblock_u8: Block256_U8
-	u128_block(rblock_u8[:BLOCK_SIZE_128_U8], 8 * u128(data_size))
+	u128_block(rblock_u8[:BLOCK_SIZE_128_U8], BITS_PER_BYTE * u128(data_size))
 
 	stream := data
 	stream_size := data_size
@@ -1584,7 +1585,7 @@ shuffle_block :: proc "contextless" (a, b: Block128_U32, indices: ..int) -> Bloc
 shl_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #no_bounds_check {
 	result: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		if shift < 8 * size_of(u32) {
+		if shift < BITS_PER_BYTE * size_of(u32) {
 			result[i] = a[i] << shift
 		} else {
 			result[i] = 0
@@ -1598,7 +1599,7 @@ shl_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #n
 shr_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #no_bounds_check {
 	result: Block128_U32 = ---
 	for i in 0..<BLOCK_SIZE_128_U32 {
-		if shift < 8 * size_of(u32) {
+		if shift < BITS_PER_BYTE * size_of(u32) {
 			result[i] = a[i] >> shift
 		} else {
 			result[i] = 0
@@ -1613,7 +1614,7 @@ clmul_low :: proc "contextless" (x, y: Block128_U32) -> Block128_U32 #no_bounds_
 	result: u128
 	a := (transmute(Block128_U64)x)[0]
 	b := (transmute(Block128_U64)y)[0]
-	for i := uint(0); i < 8 * size_of(u64); i += 1 {
+	for i := uint(0); i < BITS_PER_BYTE * size_of(u64); i += 1 {
 		result ~= (u128(a) << i) * u128((b >> i) & 1)
 	}
 	return transmute(Block128_U32)result
@@ -1625,7 +1626,7 @@ clmul_high :: proc "contextless" (x, y: Block128_U32) -> Block128_U32 #no_bounds
 	result: u128
 	a := (transmute(Block128_U64)x)[1]
 	b := (transmute(Block128_U64)y)[1]
-	for i := uint(0); i < 8 * size_of(u64); i += 1 {
+	for i := uint(0); i < BITS_PER_BYTE * size_of(u64); i += 1 {
 		result ~= (u128(a) << i) * u128((b >> i) & 1)
 	}
 	return transmute(Block128_U32)result
@@ -1685,24 +1686,24 @@ mul_block :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 			dst_block: Block128_U32 = ---
 			src_block: Block128_U32 = ---
 			for i in 0..<BLOCK_SIZE_128_U32 {
-				src_block[i] = endian.unchecked_get_u32le(src[4 * i: 4 * i + 4])
-				dst_block[i] = endian.unchecked_get_u32le(dst[4 * i: 4 * i + 4])
+				src_block[i] = endian.unchecked_get_u32le(src[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+				dst_block[i] = endian.unchecked_get_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 			}
 			dst_block = gf128mul(dst_block, src_block)
 			for i in 0..<BLOCK_SIZE_128_U32 {
-				endian.unchecked_put_u32le(dst[4 * i: 4 * i + 4], dst_block[i])
+				endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], dst_block[i])
 			}
 		}
 	} else {
 		dst_block: Block128_U32 = ---
 		src_block: Block128_U32 = ---
 		for i in 0..<BLOCK_SIZE_128_U32 {
-			src_block[i] = endian.unchecked_get_u32le(src[4 * i: 4 * i + 4])
-			dst_block[i] = endian.unchecked_get_u32le(dst[4 * i: 4 * i + 4])
+			src_block[i] = endian.unchecked_get_u32le(src[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+			dst_block[i] = endian.unchecked_get_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 		}
 		dst_block = gf128mul(dst_block, src_block)
 		for i in 0..<BLOCK_SIZE_128_U32 {
-			endian.unchecked_put_u32le(dst[4 * i: 4 * i + 4], dst_block[i])
+			endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], dst_block[i])
 		}
 	}
 }
@@ -1732,7 +1733,7 @@ spec_find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
 		return spec_b_values[spec_b_key]
 	}
 
-	k := uint(8 * size_of(m) - intrinsics.count_leading_zeros(m))
+	k := uint(BITS_PER_BYTE * size_of(m) - intrinsics.count_leading_zeros(m))
 	if uint(1) << k - uint(m) > uint(m) - (uint(1) << (k - 1)) {
 		k -= 1
 	}
@@ -1768,11 +1769,11 @@ spec_find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
 spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(dst_size >= 8 * B_MIN_INT && dst_size <= 8 * B_MAX_INT, "crypto/belt: invalid DST size")
+	assert_contextless(dst_size >= BITS_PER_BYTE * B_MIN_INT && dst_size <= BITS_PER_BYTE * B_MAX_INT, "crypto/belt: invalid DST size")
 	assert_contextless(src_size >= M_MIN_INT && src_size <= M_MAX_INT, "crypto/belt: invalid SRC size")
 	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 
-	pow := 8 * dst_size
+	pow := BITS_PER_BYTE * dst_size
 	round, mod, ui, mi: big.Int
 	defer big.internal_int_destroy(&round, &mod, &ui, &mi)
 
@@ -1797,7 +1798,7 @@ spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allo
 spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(src_size >= 8 * B_MIN_INT && src_size <= 8 * B_MAX_INT, "crypto/belt: invalid SRC size")
+	assert_contextless(src_size >= BITS_PER_BYTE * B_MIN_INT && src_size <= BITS_PER_BYTE * B_MAX_INT, "crypto/belt: invalid SRC size")
 	assert_contextless(dst_size >= M_MIN_INT && dst_size <= M_MAX_INT, "crypto/belt: invalid DST size")
 	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 
@@ -1822,7 +1823,7 @@ spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.
 spec_bin2str_sub :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(src_size >= 8 * B_MIN_INT && src_size <= 8 * B_MAX_INT, "crypto/belt: invalid SRC size")
+	assert_contextless(src_size >= BITS_PER_BYTE * B_MIN_INT && src_size <= BITS_PER_BYTE * B_MAX_INT, "crypto/belt: invalid SRC size")
 	assert_contextless(dst_size >= M_MIN_INT && dst_size <= M_MAX_INT, "crypto/belt: invalid DST size")
 	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
 
@@ -1857,7 +1858,7 @@ spec_encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_boun
 
 		block: Block192_U64 = ---
 		for i in 0..<BLOCK_SIZE_192_U64 {
-			block[i] = endian.unchecked_get_u64le(data[8 * i: 8 * i + 8])
+			block[i] = endian.unchecked_get_u64le(data[BLOCK_SIZE_64_U8 * i: BLOCK_SIZE_64_U8 * i + BLOCK_SIZE_64_U8])
 		}
 
 		block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
@@ -1865,7 +1866,7 @@ spec_encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_boun
 		block[c] ~= block[a]
 
 		for i in 0..<BLOCK_SIZE_192_U64 {
-			endian.unchecked_put_u64le(data[8 * i: 8 * i + 8], block[i])
+			endian.unchecked_put_u64le(data[BLOCK_SIZE_64_U8 * i: BLOCK_SIZE_64_U8 * i + BLOCK_SIZE_64_U8], block[i])
 		}
 	}
 }
@@ -1934,8 +1935,8 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	spec_r1 := data[:spec_n1]
 	spec_r2 := data[spec_n1:]
 
-	block1_size := 8 * spec_b1
-	block2_size := 8 * spec_b2
+	block1_size := BITS_PER_BYTE * spec_b1
+	block2_size := BITS_PER_BYTE * spec_b2
 
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
@@ -2023,8 +2024,8 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	spec_r1 := data[:spec_n1]
 	spec_r2 := data[spec_n1:]
 
-	block1_size := 8 * spec_b1
-	block2_size := 8 * spec_b2
+	block1_size := BITS_PER_BYTE * spec_b1
+	block2_size := BITS_PER_BYTE * spec_b2
 
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
