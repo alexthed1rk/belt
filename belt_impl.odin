@@ -1769,9 +1769,23 @@ spec_find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
 spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(dst_size >= BITS_PER_BYTE * B_MIN_INT && dst_size <= BITS_PER_BYTE * B_MAX_INT, "crypto/belt: invalid DST size")
-	assert_contextless(src_size >= M_MIN_INT && src_size <= M_MAX_INT, "crypto/belt: invalid SRC size")
-	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(
+		dst_size >= BITS_PER_BYTE * B_MIN_INT &&
+		dst_size <= BITS_PER_BYTE * B_MAX_INT,
+		"crypto/belt: invalid DST size",
+	)
+
+	assert_contextless(
+		src_size >= M_MIN_INT &&
+		src_size <= M_MAX_INT,
+		"crypto/belt: invalid SRC size",
+	)
+
+	assert_contextless(
+		m >= M_MIN_INT &&
+		m <= M_MAX_INT,
+		"crypto/belt: invalid M value",
+	)
 
 	pow := BITS_PER_BYTE * dst_size
 	round, mod, ui, mi: big.Int
@@ -1798,9 +1812,23 @@ spec_str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allo
 spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(src_size >= BITS_PER_BYTE * B_MIN_INT && src_size <= BITS_PER_BYTE * B_MAX_INT, "crypto/belt: invalid SRC size")
-	assert_contextless(dst_size >= M_MIN_INT && dst_size <= M_MAX_INT, "crypto/belt: invalid DST size")
-	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(
+		src_size >= BITS_PER_BYTE * B_MIN_INT + BLOCK_SIZE_64_U8 &&
+		src_size <= BITS_PER_BYTE * B_MAX_INT + BLOCK_SIZE_64_U8,
+		"crypto/belt: invalid SRC size",
+	)
+
+	assert_contextless(
+		dst_size >= M_MIN_INT &&
+		dst_size <= M_MAX_INT,
+		"crypto/belt: invalid DST size",
+	)
+
+	assert_contextless(
+		m >= M_MIN_INT &&
+		m <= M_MAX_INT,
+		"crypto/belt: invalid M value",
+	)
 
 	round, ui, mi: big.Int
 	defer big.internal_int_destroy(&round, &ui, &mi)
@@ -1823,9 +1851,23 @@ spec_bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.
 spec_bin2str_sub :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
-	assert_contextless(src_size >= BITS_PER_BYTE * B_MIN_INT && src_size <= BITS_PER_BYTE * B_MAX_INT, "crypto/belt: invalid SRC size")
-	assert_contextless(dst_size >= M_MIN_INT && dst_size <= M_MAX_INT, "crypto/belt: invalid DST size")
-	assert_contextless(m >= M_MIN_INT && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(
+		src_size >= BITS_PER_BYTE * B_MIN_INT + BLOCK_SIZE_64_U8 &&
+		src_size <= BITS_PER_BYTE * B_MAX_INT + BLOCK_SIZE_64_U8,
+		"crypto/belt: invalid SRC size",
+	)
+
+	assert_contextless(
+		dst_size >= M_MIN_INT &&
+		dst_size <= M_MAX_INT,
+		"crypto/belt: invalid DST size",
+	)
+
+	assert_contextless(
+		m >= M_MIN_INT &&
+		m <= M_MAX_INT,
+		"crypto/belt: invalid M value",
+	)
 
 	round, ui, mi: big.Int
 	defer big.internal_int_destroy(&round, &ui, &mi)
