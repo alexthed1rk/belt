@@ -861,7 +861,7 @@ test_spec_compress :: proc (t: ^testing.T) {
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
 	dummy_check_data: Block128_U8 = ---
-	spec_compress(dummy_check_data[:], block_data2, block_data1)
+	compress(dummy_check_data[:], block_data2, block_data1)
 
 	dummy_check_string := string(hex.encode(dummy_check_data[:], context.temp_allocator))
 	compr_check_string := string(hex.encode(block_data2[:], context.temp_allocator))
@@ -869,7 +869,7 @@ test_spec_compress :: proc (t: ^testing.T) {
 	testing.expectf(
 		t,
 		dummy_check_string == dummy_truth_string,
-		"crypto/belt: expected DUMMY: %s for spec_compress(%s, %s), but got %s instead",
+		"crypto/belt: expected DUMMY: %s for compress(%s, %s), but got %s instead",
 		dummy_truth_string,
 		block_string1,
 		block_string2,
@@ -879,7 +879,7 @@ test_spec_compress :: proc (t: ^testing.T) {
 	testing.expectf(
 		t,
 		compr_check_string == compr_truth_string,
-		"crypto/belt: expected COMPR: %s for spec_compress(%s, %s), but got %s instead",
+		"crypto/belt: expected COMPR: %s for compress(%s, %s), but got %s instead",
 		compr_truth_string,
 		block_string1,
 		block_string2,
