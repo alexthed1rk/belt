@@ -304,35 +304,35 @@ TABLE_K := [56]i32 {
 
 @(private = "file")
 table_g05 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
-	result := (
+	table := (
 		( TABLE_H05[ x       & 255 ] ) ~
 		( TABLE_H13[ x >>  8 & 255 ] ) ~
 		( TABLE_H21[ x >> 16 & 255 ] ) ~
 		( TABLE_H29[ x >> 24       ] )
 	)
-	return result
+	return table
 }
 
 @(private = "file")
 table_g13 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
-	result := (
+	table := (
 		( TABLE_H13[ x       & 255 ] ) ~
 		( TABLE_H21[ x >>  8 & 255 ] ) ~
 		( TABLE_H29[ x >> 16 & 255 ] ) ~
 		( TABLE_H05[ x >> 24       ] )
 	)
-	return result
+	return table
 }
 
 @(private = "file")
 table_g21 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
-	result := (
+	table := (
 		( TABLE_H21[ x       & 255 ] ) ~
 		( TABLE_H29[ x >>  8 & 255 ] ) ~
 		( TABLE_H05[ x >> 16 & 255 ] ) ~
 		( TABLE_H13[ x >> 24       ] )
 	)
-	return result
+	return table
 }
 
 M_MIN_INT :: 2
