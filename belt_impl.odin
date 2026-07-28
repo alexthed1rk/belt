@@ -351,6 +351,8 @@ BLOCK_SIZE_128_U8  :: 16
 BLOCK_SIZE_192_U8  :: 24
 BLOCK_SIZE_256_U8  :: 32
 BLOCK_SIZE_128_U32 ::  4
+BLOCK_SIZE_192_U32 ::  6
+BLOCK_SIZE_256_U32 ::  8
 BLOCK_SIZE_128_U64 ::  2
 BLOCK_SIZE_192_U64 ::  3
 KEY_SIZE_128_U8    :: 16
@@ -366,6 +368,8 @@ Block32_U8   :: #type [BLOCK_SIZE_32_U8]byte
 Block128_U8  :: #type [BLOCK_SIZE_128_U8]byte
 Block256_U8  :: #type [BLOCK_SIZE_256_U8]byte
 Block128_U32 :: #type [BLOCK_SIZE_128_U32]u32
+Block192_U32 :: #type [BLOCK_SIZE_192_U32]u32
+Block256_U32 :: #type [BLOCK_SIZE_256_U32]u32
 Block128_U64 :: #type [BLOCK_SIZE_128_U64]u64
 Block192_U64 :: #type [BLOCK_SIZE_192_U64]u64
 Key128_U8    :: #type [KEY_SIZE_128_U8]byte
@@ -526,24 +530,24 @@ encrypt_wide_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 	assert_contextless(data_size >= BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	round_u8: Block128_U8 = ---
+	block: Block128_U8 = ---
+	rblock: Block128_U8 = ---
 
 	num_rounds := 2 * ((uint(data_size) + BLOCK_SIZE_128_U8 - 1) / BLOCK_SIZE_128_U8)
 	for round := uint(1); round <= num_rounds; round += 1 {
-		copy_slice(block_u8[:], data[:BLOCK_SIZE_128_U8])
+		copy_slice(block[:], data[:BLOCK_SIZE_128_U8])
 		for i := BLOCK_SIZE_128_U8; i + BLOCK_SIZE_128_U8 < data_size; i += BLOCK_SIZE_128_U8 {
-			xor_block(block_u8[:], data[i: i + BLOCK_SIZE_128_U8])
+			xor_block(block[:], data[i: i + BLOCK_SIZE_128_U8])
 		}
 
 		copy_slice(data[:data_size - BLOCK_SIZE_128_U8], data[BLOCK_SIZE_128_U8:])
-		copy_slice(data[data_size - BLOCK_SIZE_128_U8:], block_u8[:])
+		copy_slice(data[data_size - BLOCK_SIZE_128_U8:], block[:])
 
-		encrypt_block(ctx, block_u8[:])
-		u128_block(round_u8[:], u128(round))
+		encrypt_block(ctx, block[:])
+		u128_block(rblock[:], u128(round))
 
-		xor_block(block_u8[:], round_u8[:])
-		xor_block(data[data_size - BLOCK_SIZE_256_U8: data_size - BLOCK_SIZE_128_U8], block_u8[:])
+		xor_block(block[:], rblock[:])
+		xor_block(data[data_size - BLOCK_SIZE_256_U8: data_size - BLOCK_SIZE_128_U8], block[:])
 	}
 }
 
@@ -554,20 +558,20 @@ decrypt_wide_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 	assert_contextless(data_size >= BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	round_u8: Block128_U8 = ---
+	block: Block128_U8 = ---
+	rblock: Block128_U8 = ---
 
 	num_rounds := 2 * ((uint(data_size) + BLOCK_SIZE_128_U8 - 1) / BLOCK_SIZE_128_U8)
 	for round := num_rounds; round >= 1; round -= 1 {
-		copy_slice(block_u8[:], data[data_size - BLOCK_SIZE_128_U8:])
+		copy_slice(block[:], data[data_size - BLOCK_SIZE_128_U8:])
 		copy_slice(data[BLOCK_SIZE_128_U8:], data[:data_size - BLOCK_SIZE_128_U8])
-		copy_slice(data[:BLOCK_SIZE_128_U8], block_u8[:])
+		copy_slice(data[:BLOCK_SIZE_128_U8], block[:])
 
-		encrypt_block(ctx, block_u8[:])
-		u128_block(round_u8[:], u128(round))
+		encrypt_block(ctx, block[:])
+		u128_block(rblock[:], u128(round))
 
-		xor_block(block_u8[:], round_u8[:])
-		xor_block(data[data_size - BLOCK_SIZE_128_U8:], block_u8[:])
+		xor_block(block[:], rblock[:])
+		xor_block(data[data_size - BLOCK_SIZE_128_U8:], block[:])
 
 		for i := BLOCK_SIZE_128_U8; i + BLOCK_SIZE_128_U8 < data_size; i += BLOCK_SIZE_128_U8 {
 			xor_block(data[:BLOCK_SIZE_128_U8], data[i: i + BLOCK_SIZE_128_U8])
@@ -592,15 +596,15 @@ encrypt_ecb :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check 
 	}
 
 	if stream_size > 0 {
-		block_u8: Block128_U8 = ---
+		block: Block128_U8 = ---
 
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
-		copy_slice(block_u8[:stream_size], stream[BLOCK_SIZE_128_U8:])
-		copy_slice(block_u8[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
+		copy_slice(block[:stream_size], stream[BLOCK_SIZE_128_U8:])
+		copy_slice(block[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
 
-		encrypt_block(ctx, block_u8[:])
+		encrypt_block(ctx, block[:])
 		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 	}
 }
 
@@ -621,15 +625,15 @@ decrypt_ecb :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check 
 	}
 
 	if stream_size > 0 {
-		block_u8: Block128_U8 = ---
+		block: Block128_U8 = ---
 
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
-		copy_slice(block_u8[:stream_size], stream[BLOCK_SIZE_128_U8:])
-		copy_slice(block_u8[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
+		copy_slice(block[:stream_size], stream[BLOCK_SIZE_128_U8:])
+		copy_slice(block[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
 
-		decrypt_block(ctx, block_u8[:])
+		decrypt_block(ctx, block[:])
 		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 	}
 }
 
@@ -641,15 +645,15 @@ encrypt_cbc :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	copy_slice(block_u8[:], iv)
+	block: Block128_U8 = ---
+	copy_slice(block[:], iv)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		encrypt_block(ctx, block_u8[:])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		encrypt_block(ctx, block[:])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -657,12 +661,12 @@ encrypt_cbc :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 
 	if stream_size > 0 {
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
-		xor_slice(block_u8[:stream_size], stream[BLOCK_SIZE_128_U8:])
-		copy_slice(block_u8[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
+		xor_slice(block[:stream_size], stream[BLOCK_SIZE_128_U8:])
+		copy_slice(block[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
 
-		encrypt_block(ctx, block_u8[:])
+		encrypt_block(ctx, block[:])
 		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 	}
 }
 
@@ -674,35 +678,35 @@ decrypt_cbc :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	round_u8: Block128_U8 = ---
-	copy_slice(round_u8[:], iv)
+	block: Block128_U8 = ---
+	round: Block128_U8 = ---
+	copy_slice(round[:], iv)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_256_U8 || stream_size == BLOCK_SIZE_128_U8 {
-		copy_slice(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		decrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], round_u8[:])
-		copy_slice(round_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		copy_slice(block[:], stream[:BLOCK_SIZE_128_U8])
+		decrypt_block(ctx, block[:])
+		xor_block(block[:], round[:])
+		copy_slice(round[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		copy_slice(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		decrypt_block(ctx, block_u8[:])
+		copy_slice(block[:], stream[:BLOCK_SIZE_128_U8])
+		decrypt_block(ctx, block[:])
 
-		xor_slice(block_u8[:stream_size - BLOCK_SIZE_128_U8], stream[BLOCK_SIZE_128_U8: stream_size])
-		xor_slice(stream[BLOCK_SIZE_128_U8: stream_size], block_u8[:stream_size - BLOCK_SIZE_128_U8])
-		xor_slice(block_u8[:stream_size - BLOCK_SIZE_128_U8], stream[BLOCK_SIZE_128_U8: stream_size])
-		xor_slice(stream[BLOCK_SIZE_128_U8: stream_size], block_u8[:stream_size - BLOCK_SIZE_128_U8])
+		xor_slice(block[:stream_size - BLOCK_SIZE_128_U8], stream[BLOCK_SIZE_128_U8: stream_size])
+		xor_slice(stream[BLOCK_SIZE_128_U8: stream_size], block[:stream_size - BLOCK_SIZE_128_U8])
+		xor_slice(block[:stream_size - BLOCK_SIZE_128_U8], stream[BLOCK_SIZE_128_U8: stream_size])
+		xor_slice(stream[BLOCK_SIZE_128_U8: stream_size], block[:stream_size - BLOCK_SIZE_128_U8])
 
-		decrypt_block(ctx, block_u8[:])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
-		xor_block(stream[:BLOCK_SIZE_128_U8], round_u8[:])
+		decrypt_block(ctx, block[:])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
+		xor_block(stream[:BLOCK_SIZE_128_U8], round[:])
 	}
 }
 
@@ -714,24 +718,24 @@ encrypt_cfb :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	copy_slice(block_u8[:], iv)
+	block: Block128_U8 = ---
+	copy_slice(block[:], iv)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
 	}
 }
 
@@ -743,27 +747,27 @@ decrypt_cfb :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	copy_slice(block_u8[:], iv)
+	block: Block128_U8 = ---
+	copy_slice(block[:], iv)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
 
-		xor_block(stream[:BLOCK_SIZE_128_U8], block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		xor_block(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		xor_block(stream[:BLOCK_SIZE_128_U8], block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		xor_block(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
 	}
 }
 
@@ -775,31 +779,31 @@ encrypt_ctr :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	round_u8: Block128_U8 = ---
+	block: Block128_U8 = ---
+	round: Block128_U8 = ---
 
-	copy_slice(round_u8[:], iv)
-	encrypt_block(ctx, round_u8[:])
+	copy_slice(round[:], iv)
+	encrypt_block(ctx, round[:])
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		inc_block(round_u8[:])
-		copy_slice(block_u8[:], round_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		inc_block(round[:])
+		copy_slice(block[:], round[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		inc_block(round_u8[:])
-		copy_slice(block_u8[:], round_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
+		inc_block(round[:])
+		copy_slice(block[:], round[:])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
 	}
 }
 
@@ -811,31 +815,31 @@ decrypt_ctr :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8 = ---
-	round_u8: Block128_U8 = ---
+	block: Block128_U8 = ---
+	round: Block128_U8 = ---
 
-	copy_slice(round_u8[:], iv)
-	encrypt_block(ctx, round_u8[:])
+	copy_slice(round[:], iv)
+	encrypt_block(ctx, round[:])
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		inc_block(round_u8[:])
-		copy_slice(block_u8[:], round_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		inc_block(round[:])
+		copy_slice(block[:], round[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		inc_block(round_u8[:])
-		copy_slice(block_u8[:], round_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
+		inc_block(round[:])
+		copy_slice(block[:], round[:])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
 	}
 }
 
@@ -887,37 +891,37 @@ derive_mac :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8
-	round_u8: Block128_U8
-	mac_u8: Block128_U8
+	block: Block128_U8
+	round: Block128_U8
+	mblock: Block128_U8
 
 	stream := data
 	stream_size := data_size
-	encrypt_block(ctx, round_u8[:])
+	encrypt_block(ctx, round[:])
 	for stream_size > BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		encrypt_block(ctx, mac_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		encrypt_block(ctx, mblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size == BLOCK_SIZE_128_U8 {
-		spec_φ1(round_u8[:])
-		xor_block(mac_u8[:], round_u8[:])
-		xor_block(mac_u8[:], stream[:])
+		spec_φ1(round[:])
+		xor_block(mblock[:], round[:])
+		xor_block(mblock[:], stream[:])
 	} else {
 		spec_ψ_unit :: 0x80
-		copy_slice(block_u8[:stream_size], stream[:])
-		block_u8[stream_size] = spec_ψ_unit
+		copy_slice(block[:stream_size], stream[:])
+		block[stream_size] = spec_ψ_unit
 
-		spec_φ2(round_u8[:])
-		xor_block(mac_u8[:], round_u8[:])
-		xor_block(mac_u8[:], block_u8[:])
+		spec_φ2(round[:])
+		xor_block(mblock[:], round[:])
+		xor_block(mblock[:], block[:])
 	}
 
-	encrypt_block(ctx, mac_u8[:])
-	copy_slice(mac[:], mac_u8[:MAC_SIZE_64_U8])
+	encrypt_block(ctx, mblock[:])
+	copy_slice(mac[:], mblock[:MAC_SIZE_64_U8])
 }
 
 /* Authenticated encryption: belt-seal-dwp */
@@ -930,72 +934,72 @@ seal_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
-	block_u8:  Block128_U8
-	rblock_u8: Block128_U8 = ---
-	sblock_u8: Block128_U8 = ---
-	mblock_u8: Block128_U8 = ---
-	mac_u8  := spec_t
+	block:  Block128_U8
+	rblock: Block128_U8 = ---
+	sblock: Block128_U8 = ---
+	tblock: Block128_U8 = ---
+	mblock := spec_t
 
-	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
-	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
-	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
-	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+	endian.unchecked_put_u64le(tblock[:MAC_SIZE_64_U8], modulus1)
+	endian.unchecked_put_u64le(tblock[MAC_SIZE_64_U8:], modulus2)
 
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
-	copy_slice(rblock_u8[:], sblock_u8[:])
-	encrypt_block(ctx, rblock_u8[:])
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
+	copy_slice(rblock[:], sblock[:])
+	encrypt_block(ctx, rblock[:])
 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
-		block_u8 = Block128_U8 {}
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
+		block = Block128_U8 {}
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		inc_block(sblock_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		inc_block(sblock[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		inc_block(sblock_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
-		block_u8 = Block128_U8 {}
+		inc_block(sblock[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
+		block = Block128_U8 {}
 
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
 	}
 
-	xor_block(mac_u8[:], mblock_u8[:])
-	mul_block(mac_u8[:], rblock_u8[:])
-	encrypt_block(ctx, mac_u8[:])
-	copy_slice(mac[:], mac_u8[:mac_size])
+	xor_block(mblock[:], tblock[:])
+	mul_block(mblock[:], rblock[:])
+	encrypt_block(ctx, mblock[:])
+	copy_slice(mac[:], mblock[:mac_size])
 }
 
 /* Authenticated encryption: belt-open-dwp */
@@ -1008,73 +1012,73 @@ open_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
-	block_u8:  Block128_U8
-	rblock_u8: Block128_U8 = ---
-	sblock_u8: Block128_U8 = ---
-	mblock_u8: Block128_U8 = ---
-	mac_u8  := spec_t
+	block:  Block128_U8
+	rblock: Block128_U8 = ---
+	sblock: Block128_U8 = ---
+	tblock: Block128_U8 = ---
+	mblock := spec_t
 
-	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
-	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
-	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
-	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+	endian.unchecked_put_u64le(tblock[:MAC_SIZE_64_U8], modulus1)
+	endian.unchecked_put_u64le(tblock[MAC_SIZE_64_U8:], modulus2)
 
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
-	copy_slice(rblock_u8[:], sblock_u8[:])
-	encrypt_block(ctx, rblock_u8[:])
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
+	copy_slice(rblock[:], sblock[:])
+	encrypt_block(ctx, rblock[:])
 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
-		block_u8 = Block128_U8 {}
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
+		block = Block128_U8 {}
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
-		inc_block(sblock_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		inc_block(sblock[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		block_u8 = Block128_U8 {}
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
+		block = Block128_U8 {}
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
 
-		inc_block(sblock_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
+		inc_block(sblock[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
 	}
 
-	xor_block(mac_u8[:], mblock_u8[:])
-	mul_block(mac_u8[:], rblock_u8[:])
-	encrypt_block(ctx, mac_u8[:])
+	xor_block(mblock[:], tblock[:])
+	mul_block(mblock[:], rblock[:])
+	encrypt_block(ctx, mblock[:])
 
-	if runtime.memory_compare(raw_data(mac), &mac_u8[0], mac_size) == 0 {
+	if runtime.memory_compare(raw_data(mac), &mblock[0], mac_size) == 0 {
 		return true
 	} else {
 		intrinsics.mem_zero(raw_data(mac), mac_size)
@@ -1093,76 +1097,76 @@ seal_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
-	block_u8:  Block128_U8
-	rblock_u8: Block128_U8 = ---
-	sblock_u8: Block128_U8 = ---
-	mblock_u8: Block128_U8 = ---
-	cblock_u8 := spec_c
-	mac_u8    := spec_t
+	block:  Block128_U8
+	rblock: Block128_U8 = ---
+	sblock: Block128_U8 = ---
+	tblock: Block128_U8 = ---
+	cblock := spec_c
+	mblock := spec_t
 
-	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
-	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
-	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
-	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+	endian.unchecked_put_u64le(tblock[:MAC_SIZE_64_U8], modulus1)
+	endian.unchecked_put_u64le(tblock[MAC_SIZE_64_U8:], modulus2)
 
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
-	copy_slice(rblock_u8[:], sblock_u8[:])
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
+	copy_slice(rblock[:], sblock[:])
 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
-		block_u8 = Block128_U8 {}
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
+		block = Block128_U8 {}
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		mul_block(sblock_u8[:], cblock_u8[:])
-		u128_block(block_u8[:], 1)
-		xor_block(sblock_u8[:], block_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		mul_block(sblock[:], cblock[:])
+		u128_block(block[:], 1)
+		xor_block(sblock[:], block[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		mul_block(sblock_u8[:], cblock_u8[:])
-		u128_block(block_u8[:], 1)
-		xor_block(sblock_u8[:], block_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
-		block_u8 = Block128_U8 {}
+		mul_block(sblock[:], cblock[:])
+		u128_block(block[:], 1)
+		xor_block(sblock[:], block[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
+		block = Block128_U8 {}
 
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
 	}
 
-	xor_block(mac_u8[:], mblock_u8[:])
-	mul_block(mac_u8[:], rblock_u8[:])
-	encrypt_block(ctx, mac_u8[:])
-	copy_slice(mac[:], mac_u8[:mac_size])
+	xor_block(mblock[:], tblock[:])
+	mul_block(mblock[:], rblock[:])
+	encrypt_block(ctx, mblock[:])
+	copy_slice(mac[:], mblock[:mac_size])
 }
 
 /* Authenticated encryption: belt-open-che */
@@ -1175,77 +1179,77 @@ open_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
-	block_u8:  Block128_U8
-	rblock_u8: Block128_U8 = ---
-	sblock_u8: Block128_U8 = ---
-	mblock_u8: Block128_U8 = ---
-	cblock_u8 := spec_c
-	mac_u8    := spec_t
+	block:  Block128_U8
+	rblock: Block128_U8 = ---
+	sblock: Block128_U8 = ---
+	tblock: Block128_U8 = ---
+	cblock := spec_c
+	mblock := spec_t
 
-	aad_mod  := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
-	data_mod := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
-	endian.unchecked_put_u64le(mblock_u8[:MAC_SIZE_64_U8], aad_mod)
-	endian.unchecked_put_u64le(mblock_u8[MAC_SIZE_64_U8:], data_mod)
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+	endian.unchecked_put_u64le(tblock[:MAC_SIZE_64_U8], modulus1)
+	endian.unchecked_put_u64le(tblock[MAC_SIZE_64_U8:], modulus2)
 
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
-	copy_slice(rblock_u8[:], sblock_u8[:])
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
+	copy_slice(rblock[:], sblock[:])
 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
-		block_u8 = Block128_U8 {}
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
+		block = Block128_U8 {}
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(mac_u8[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(mac_u8[:], rblock_u8[:])
+		xor_block(mblock[:], stream[:BLOCK_SIZE_128_U8])
+		mul_block(mblock[:], rblock[:])
 
-		mul_block(sblock_u8[:], cblock_u8[:])
-		u128_block(block_u8[:], 1)
-		xor_block(sblock_u8[:], block_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_block(block_u8[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block_u8[:])
+		mul_block(sblock[:], cblock[:])
+		u128_block(block[:], 1)
+		xor_block(sblock[:], block[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		block_u8 = Block128_U8 {}
-		copy_slice(block_u8[:stream_size], stream[:])
-		xor_block(mac_u8[:], block_u8[:])
-		mul_block(mac_u8[:], rblock_u8[:])
+		block = Block128_U8 {}
+		copy_slice(block[:stream_size], stream[:])
+		xor_block(mblock[:], block[:])
+		mul_block(mblock[:], rblock[:])
 
-		mul_block(sblock_u8[:], cblock_u8[:])
-		u128_block(block_u8[:], 1)
-		xor_block(sblock_u8[:], block_u8[:])
-		copy_slice(block_u8[:], sblock_u8[:])
-		encrypt_block(ctx, block_u8[:])
-		xor_slice(block_u8[:stream_size], stream[:])
-		copy_slice(stream[:], block_u8[:stream_size])
+		mul_block(sblock[:], cblock[:])
+		u128_block(block[:], 1)
+		xor_block(sblock[:], block[:])
+		copy_slice(block[:], sblock[:])
+		encrypt_block(ctx, block[:])
+		xor_slice(block[:stream_size], stream[:])
+		copy_slice(stream[:], block[:stream_size])
 	}
 
-	xor_block(mac_u8[:], mblock_u8[:])
-	mul_block(mac_u8[:], rblock_u8[:])
-	encrypt_block(ctx, mac_u8[:])
+	xor_block(mblock[:], tblock[:])
+	mul_block(mblock[:], rblock[:])
+	encrypt_block(ctx, mblock[:])
 
-	if runtime.memory_compare(raw_data(mac), &mac_u8[0], mac_size) == 0 {
+	if runtime.memory_compare(raw_data(mac), &mblock[0], mac_size) == 0 {
 		return true
 	} else {
 		intrinsics.mem_zero(raw_data(mac), mac_size)
@@ -1277,11 +1281,11 @@ open_kwp :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bool 
 	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block_u8: Block128_U8
+	block: Block128_U8
 	decrypt_wide_block(ctx, cipher)
-	copy_slice(block_u8[:], cipher[data_size:])
+	copy_slice(block[:], cipher[data_size:])
 
-	if runtime.memory_compare(raw_data(iv), &block_u8[0], iv_size) == 0 {
+	if runtime.memory_compare(raw_data(iv), &block[0], iv_size) == 0 {
 		copy_slice(data, cipher[:data_size])
 		return true
 	} else {
@@ -1299,39 +1303,39 @@ spec_compress :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_chec
 	assert_contextless(len(data)  == BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 
 	ctx: Context = ---
-	block_u8: Block128_U8 = ---
-	key_u8:   Key256_U8   = ---
+	block: Block128_U8 = ---
+	key:   Key256_U8   = ---
 
 	block_a := data[:BLOCK_SIZE_128_U8]
 	block_b := data[BLOCK_SIZE_128_U8:]
 	block_c := compr[:BLOCK_SIZE_128_U8]
 	block_d := compr[BLOCK_SIZE_128_U8:]
 
-	copy_slice(block_u8[:], block_c)
-	xor_block(block_u8[:], block_d)
+	copy_slice(block[:], block_c)
+	xor_block(block[:], block_d)
 
-	copy_slice(dummy, block_u8[:])
-	copy_slice(key_u8[:BLOCK_SIZE_128_U8], block_a)
-	copy_slice(key_u8[BLOCK_SIZE_128_U8:], block_b)
+	copy_slice(dummy, block[:])
+	copy_slice(key[:BLOCK_SIZE_128_U8], block_a)
+	copy_slice(key[BLOCK_SIZE_128_U8:], block_b)
 
-	init(&ctx, key_u8[:])
-	encrypt_block(ctx, block_u8[:])
-	xor_block(dummy, block_u8[:])
+	init(&ctx, key[:])
+	encrypt_block(ctx, block[:])
+	xor_block(dummy, block[:])
 
-	copy_slice(block_u8[:], block_c)
+	copy_slice(block[:], block_c)
 	copy_slice(compr[:BLOCK_SIZE_128_U8], block_a)
-	copy_slice(key_u8[:BLOCK_SIZE_128_U8], dummy)
-	copy_slice(key_u8[BLOCK_SIZE_128_U8:], block_d)
+	copy_slice(key[:BLOCK_SIZE_128_U8], dummy)
+	copy_slice(key[BLOCK_SIZE_128_U8:], block_d)
 
-	init(&ctx, key_u8[:])
+	init(&ctx, key[:])
 	encrypt_block(ctx, compr[:BLOCK_SIZE_128_U8])
 	xor_block(compr[:BLOCK_SIZE_128_U8], block_a)
 
 	copy_slice(compr[BLOCK_SIZE_128_U8:], block_b)
-	neg_block(key_u8[:BLOCK_SIZE_128_U8], dummy)
-	copy_slice(key_u8[BLOCK_SIZE_128_U8:], block_u8[:])
+	neg_block(key[:BLOCK_SIZE_128_U8], dummy)
+	copy_slice(key[BLOCK_SIZE_128_U8:], block[:])
 
-	init(&ctx, key_u8[:])
+	init(&ctx, key[:])
 	encrypt_block(ctx, compr[BLOCK_SIZE_128_U8:])
 	xor_block(compr[BLOCK_SIZE_128_U8:], block_b)
 }
@@ -1343,30 +1347,30 @@ derive_hash :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	ensure_contextless(len(hash) == BLOCK_SIZE_256_U8, "crypto/belt: invalid HASH size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 
-	hblock_u8 := spec_h
-	tblock_u8: Block128_U8 = ---
-	rblock_u8: Block256_U8
-	u128_block(rblock_u8[:BLOCK_SIZE_128_U8], BITS_PER_BYTE * u128(data_size))
+	hblock := spec_h
+	tblock: Block128_U8 = ---
+	rblock: Block256_U8
+	u128_block(rblock[:BLOCK_SIZE_128_U8], BITS_PER_BYTE * u128(data_size))
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_256_U8 {
-		spec_compress(tblock_u8[:], hblock_u8[:], stream[:BLOCK_SIZE_256_U8])
-		xor_block(rblock_u8[BLOCK_SIZE_128_U8:], tblock_u8[:])
+		spec_compress(tblock[:], hblock[:], stream[:BLOCK_SIZE_256_U8])
+		xor_block(rblock[BLOCK_SIZE_128_U8:], tblock[:])
 
 		stream = stream[BLOCK_SIZE_256_U8:]
 		stream_size -= BLOCK_SIZE_256_U8
 	}
 
 	if stream_size > 0 {
-		block_u8: Block256_U8
-		copy_slice(block_u8[:stream_size], stream)
-		spec_compress(tblock_u8[:], hblock_u8[:], block_u8[:])
-		xor_block(rblock_u8[BLOCK_SIZE_128_U8:], tblock_u8[:])
+		block: Block256_U8
+		copy_slice(block[:stream_size], stream)
+		spec_compress(tblock[:], hblock[:], block[:])
+		xor_block(rblock[BLOCK_SIZE_128_U8:], tblock[:])
 	}
 
-	spec_compress(tblock_u8[:], hblock_u8[:], rblock_u8[:])
-	copy_slice(hash, hblock_u8[:])
+	spec_compress(tblock[:], hblock[:], rblock[:])
+	copy_slice(hash, hblock[:])
 }
 
 /* Block level encryption: belt-encrypt-bde */
@@ -1382,19 +1386,19 @@ encrypt_bde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	sblock_u8: Block128_U8 = ---
-	cblock_u8 := spec_c
+	sblock: Block128_U8 = ---
+	cblock := spec_c
 
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		mul_block(sblock_u8[:], cblock_u8[:])
-		xor_block(stream[:BLOCK_SIZE_128_U8], sblock_u8[:])
+		mul_block(sblock[:], cblock[:])
+		xor_block(stream[:BLOCK_SIZE_128_U8], sblock[:])
 		encrypt_block(ctx, stream[:BLOCK_SIZE_128_U8])
-		xor_block(stream[:BLOCK_SIZE_128_U8], sblock_u8[:])
+		xor_block(stream[:BLOCK_SIZE_128_U8], sblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -1414,19 +1418,19 @@ decrypt_bde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	sblock_u8: Block128_U8 = ---
-	cblock_u8 := spec_c
+	sblock: Block128_U8 = ---
+	cblock := spec_c
 
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		mul_block(sblock_u8[:], cblock_u8[:])
-		xor_block(stream[:BLOCK_SIZE_128_U8], sblock_u8[:])
+		mul_block(sblock[:], cblock[:])
+		xor_block(stream[:BLOCK_SIZE_128_U8], sblock[:])
 		decrypt_block(ctx, stream[:BLOCK_SIZE_128_U8])
-		xor_block(stream[:BLOCK_SIZE_128_U8], sblock_u8[:])
+		xor_block(stream[:BLOCK_SIZE_128_U8], sblock[:])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -1446,13 +1450,13 @@ encrypt_sde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	sblock_u8: Block128_U8 = ---
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
+	sblock: Block128_U8 = ---
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
 
-	xor_block(data[:BLOCK_SIZE_128_U8], sblock_u8[:])
+	xor_block(data[:BLOCK_SIZE_128_U8], sblock[:])
 	encrypt_wide_block(ctx, data)
-	xor_block(data[:BLOCK_SIZE_128_U8], sblock_u8[:])
+	xor_block(data[:BLOCK_SIZE_128_U8], sblock[:])
 }
 
 /* Sector level encryption: belt-decrypt-sde */
@@ -1468,13 +1472,13 @@ decrypt_sde :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	sblock_u8: Block128_U8 = ---
-	copy_slice(sblock_u8[:], iv)
-	encrypt_block(ctx, sblock_u8[:])
+	sblock: Block128_U8 = ---
+	copy_slice(sblock[:], iv)
+	encrypt_block(ctx, sblock[:])
 
-	xor_block(data[:BLOCK_SIZE_128_U8], sblock_u8[:])
+	xor_block(data[:BLOCK_SIZE_128_U8], sblock[:])
 	decrypt_wide_block(ctx, data)
-	xor_block(data[:BLOCK_SIZE_128_U8], sblock_u8[:])
+	xor_block(data[:BLOCK_SIZE_128_U8], sblock[:])
 }
 
 /* Expand key {128, 192} to key {256}: belt-expand-key */
@@ -1497,13 +1501,20 @@ expand_key :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 		copy_slice(dst[:KEY_SIZE_128_U8], src)
 		copy_slice(dst[KEY_SIZE_128_U8:], src)
 	} else if src_size == KEY_SIZE_192_U8 {
-		copy_slice(dst[:KEY_SIZE_192_U8], src)
-		copy_slice(dst[24:28], src[0:4])
-		copy_slice(dst[28:32], src[12:16])
-		xor_slice(dst[24:28], src[4:8])
-		xor_slice(dst[24:28], src[8:12])
-		xor_slice(dst[28:32], src[16:20])
-		xor_slice(dst[28:32], src[20:24])
+		a :: 0; b :: 1; c :: 2; d :: 3
+		e :: 4; f :: 5; g :: 6; h :: 7
+
+		block: Block256_U32 = ---
+		for i in 0..<BLOCK_SIZE_192_U32 {
+			block[i] = endian.unchecked_get_u32le(src[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block[g] = block[a] ~ block[b] ~ block[c]
+		block[h] = block[d] ~ block[e] ~ block[f]
+
+		for i in 0..<BLOCK_SIZE_256_U32 {
+			endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
+		}
 	} else if src_size == KEY_SIZE_256_U8 {
 		copy_slice(dst, src)
 	}
@@ -1530,29 +1541,29 @@ derive_key :: proc "contextless" (dv, iv, dst, src: []byte) #no_bounds_check {
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(len(dv) == BLOCK_SIZE_96_U8, "crypto/belt: invalid DV size")
 
-	tblock_u8: Block128_U8 = ---
-	rblock_u8: Block256_U8 = ---
-	sblock_u8: Key256_U8 = ---
+	tblock: Block128_U8 = ---
+	rblock: Block256_U8 = ---
+	sblock: Key256_U8 = ---
 
 	if src_size == KEY_SIZE_128_U8 && dst_size == KEY_SIZE_128_U8 {
-		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r1[:])
+		copy_slice(rblock[:BLOCK_SIZE_32_U8], spec_r1[:])
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_128_U8 {
-		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r2[:])
+		copy_slice(rblock[:BLOCK_SIZE_32_U8], spec_r2[:])
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_192_U8 {
-		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r3[:])
+		copy_slice(rblock[:BLOCK_SIZE_32_U8], spec_r3[:])
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_128_U8 {
-		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r4[:])
+		copy_slice(rblock[:BLOCK_SIZE_32_U8], spec_r4[:])
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_192_U8 {
-		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r5[:])
+		copy_slice(rblock[:BLOCK_SIZE_32_U8], spec_r5[:])
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_256_U8 {
-		copy_slice(rblock_u8[:BLOCK_SIZE_32_U8], spec_r6[:])
+		copy_slice(rblock[:BLOCK_SIZE_32_U8], spec_r6[:])
 	}
 
-	expand_key(sblock_u8[:], src)
-	copy_slice(rblock_u8[BLOCK_SIZE_128_U8:], iv)
-	copy_slice(rblock_u8[BLOCK_SIZE_32_U8: BLOCK_SIZE_128_U8], dv)
-	spec_compress(tblock_u8[:], sblock_u8[:], rblock_u8[:])
-	copy_slice(dst, sblock_u8[:dst_size])
+	expand_key(sblock[:], src)
+	copy_slice(rblock[BLOCK_SIZE_128_U8:], iv)
+	copy_slice(rblock[BLOCK_SIZE_32_U8: BLOCK_SIZE_128_U8], dv)
+	spec_compress(tblock[:], sblock[:], rblock[:])
+	copy_slice(dst, sblock[:dst_size])
 }
 
 /* Reorder the lanes of a Block128_U32 block */
@@ -1892,11 +1903,11 @@ spec_encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_boun
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
 	a :: 0; b :: 1; c :: 2
-	rblock_u8: Block128_U8 = ---
+	rblock: Block128_U8 = ---
 	for round := 1; round <= 3; round += 1 {
-		u128_block(rblock_u8[:], u128(round))
+		u128_block(rblock[:], u128(round))
 		encrypt_block(ctx, data[BLOCK_SIZE_64_U8:])
-		xor_block(data[BLOCK_SIZE_64_U8:], rblock_u8[:])
+		xor_block(data[BLOCK_SIZE_64_U8:], rblock[:])
 
 		block: Block192_U64 = ---
 		for i in 0..<BLOCK_SIZE_192_U64 {
@@ -1982,38 +1993,38 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
-	block1_u8 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
-	block2_u8 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
+	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
+	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
 	ok: bool
 	for round := 0; round <= 2; round += 1 {
-		if ok = spec_str2bin(m, block2_u8[:block2_size], spec_r2, allocator); !ok {
+		if ok = spec_str2bin(m, block2[:block2_size], spec_r2, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		copy_slice(block2_u8[block2_size + BLOCK_SIZE_32_U8:], spec_s[2 * round])
-		copy_slice(block2_u8[block2_size: block2_size + BLOCK_SIZE_32_U8], spec_c[2 * round])
-		spec_roundf(ctx, block2_u8[:])
+		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], spec_s[2 * round])
+		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], spec_c[2 * round])
+		spec_roundf(ctx, block2[:])
 
-		if ok = spec_bin2str_add(m, spec_r1, block2_u8[:]); !ok {
+		if ok = spec_bin2str_add(m, spec_r1, block2[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		if ok = spec_str2bin(m, block1_u8[:block1_size], spec_r1, allocator); !ok {
+		if ok = spec_str2bin(m, block1[:block1_size], spec_r1, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		copy_slice(block1_u8[block1_size + BLOCK_SIZE_32_U8:], spec_s[2 * round + 1])
-		copy_slice(block1_u8[block1_size: block1_size + BLOCK_SIZE_32_U8], spec_c[2 * round + 1])
-		spec_roundf(ctx, block1_u8[:])
+		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], spec_s[2 * round + 1])
+		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], spec_c[2 * round + 1])
+		spec_roundf(ctx, block1[:])
 
-		if ok = spec_bin2str_add(m, spec_r2, block1_u8[:]); !ok {
+		if ok = spec_bin2str_add(m, spec_r2, block1[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
@@ -2071,38 +2082,38 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
-	block1_u8 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
-	block2_u8 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
+	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
+	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
 	ok: bool
 	for round := 2; round >= 0; round -= 1 {
-		if ok = spec_str2bin(m, block1_u8[:block1_size], spec_r1, allocator); !ok {
+		if ok = spec_str2bin(m, block1[:block1_size], spec_r1, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		copy_slice(block1_u8[block1_size + BLOCK_SIZE_32_U8:], spec_s[2 * round + 1])
-		copy_slice(block1_u8[block1_size: block1_size + BLOCK_SIZE_32_U8], spec_c[2 * round + 1])
-		spec_roundf(ctx, block1_u8[:])
+		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], spec_s[2 * round + 1])
+		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], spec_c[2 * round + 1])
+		spec_roundf(ctx, block1[:])
 
-		if ok = spec_bin2str_sub(m, spec_r2, block1_u8[:]); !ok {
+		if ok = spec_bin2str_sub(m, spec_r2, block1[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		if ok = spec_str2bin(m, block2_u8[:block2_size], spec_r2, allocator); !ok {
+		if ok = spec_str2bin(m, block2[:block2_size], spec_r2, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		copy_slice(block2_u8[block2_size + BLOCK_SIZE_32_U8:], spec_s[2 * round])
-		copy_slice(block2_u8[block2_size: block2_size + BLOCK_SIZE_32_U8], spec_c[2 * round])
-		spec_roundf(ctx, block2_u8[:])
+		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], spec_s[2 * round])
+		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], spec_c[2 * round])
+		spec_roundf(ctx, block2[:])
 
-		if ok = spec_bin2str_sub(m, spec_r1, block2_u8[:]); !ok {
+		if ok = spec_bin2str_sub(m, spec_r1, block2[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
