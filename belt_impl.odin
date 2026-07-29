@@ -1961,12 +1961,12 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
 
-	block_s1: Block32_U8 = ---
-	block_s6: Block32_U8 = ---
+	block3: Block32_U8 = ---
+	block4: Block32_U8 = ---
 
-	endian.unchecked_put_u16le(block_s1[:BLOCK_SIZE_16_U8], u16(m))
-	endian.unchecked_put_u16le(block_s1[BLOCK_SIZE_16_U8:], u16(data_size))
-	copy_slice(block_s6[:], block_s1[:])
+	endian.unchecked_put_u16le(block3[:BLOCK_SIZE_16_U8], u16(m))
+	endian.unchecked_put_u16le(block3[BLOCK_SIZE_16_U8:], u16(data_size))
+	copy_slice(block4[:], block3[:])
 
 	table1 := [?][]byte {
 		BLOCK_C1[:],
@@ -1978,12 +1978,12 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	}
 
 	table2 := [?][]byte {
-		block_s1[:],
+		block3[:],
 		iv[:BLOCK_SIZE_32_U8],
 		iv[BLOCK_SIZE_32_U8:BLOCK_SIZE_64_U8],
 		iv[BLOCK_SIZE_64_U8:BLOCK_SIZE_96_U8],
 		iv[BLOCK_SIZE_96_U8:],
-		block_s6[:],
+		block4[:],
 	}
 
 	n1 := int((uint(data_size) + 1) / 2)
@@ -2051,12 +2051,12 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
 
-	block_s1: Block32_U8 = ---
-	block_s6: Block32_U8 = ---
+	block3: Block32_U8 = ---
+	block4: Block32_U8 = ---
 
-	endian.unchecked_put_u16le(block_s1[:BLOCK_SIZE_16_U8], u16(m))
-	endian.unchecked_put_u16le(block_s1[BLOCK_SIZE_16_U8:], u16(data_size))
-	copy_slice(block_s6[:], block_s1[:])
+	endian.unchecked_put_u16le(block3[:BLOCK_SIZE_16_U8], u16(m))
+	endian.unchecked_put_u16le(block3[BLOCK_SIZE_16_U8:], u16(data_size))
+	copy_slice(block4[:], block3[:])
 
 	table1 := [?][]byte {
 		BLOCK_C1[:],
@@ -2068,12 +2068,12 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	}
 
 	table2 := [?][]byte {
-		block_s1[:],
+		block3[:],
 		iv[:BLOCK_SIZE_32_U8],
 		iv[BLOCK_SIZE_32_U8:BLOCK_SIZE_64_U8],
 		iv[BLOCK_SIZE_64_U8:BLOCK_SIZE_96_U8],
 		iv[BLOCK_SIZE_96_U8:],
-		block_s6[:],
+		block4[:],
 	}
 
 	n1 := int((uint(data_size) + 1) / 2)
