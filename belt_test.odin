@@ -1182,7 +1182,6 @@ test_derive_key :: proc (t: ^testing.T) {
 test_encrypt_fmt :: proc (t: ^testing.T) {
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
-	truth_ok   := true
 
 	m1 := 10; n1 :: 10
 	block_data1 := [n1]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, }
@@ -1210,14 +1209,14 @@ test_encrypt_fmt :: proc (t: ^testing.T) {
 	ctx: Context = ---
 	init(&ctx, key_data)
 
-	check_ok1 := encrypt_fmt(ctx, m1, iv_data, check_data1[:])
-	check_ok2 := encrypt_fmt(ctx, m2, iv_data, check_data2[:])
-	check_ok3 := encrypt_fmt(ctx, m3, iv_data, check_data3[:])
+	encrypt_fmt(ctx, m1, iv_data, check_data1[:])
+	encrypt_fmt(ctx, m2, iv_data, check_data2[:])
+	encrypt_fmt(ctx, m3, iv_data, check_data3[:])
 
 	testing.expectf(
 		t,
 		check_data1 == truth_data1,
-		"crypto/belt: expected TRUTH: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
+		"crypto/belt: expected: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
 		truth_data1,
 		block_data1,
 		iv_string,
@@ -1227,19 +1226,8 @@ test_encrypt_fmt :: proc (t: ^testing.T) {
 
 	testing.expectf(
 		t,
-		check_ok1 == truth_ok,
-		"crypto/belt: expected OK: %t for encrypt_fmt(%v, %s, %s), but got %t instead",
-		truth_ok,
-		block_data1,
-		iv_string,
-		key_string,
-		check_ok1,
-	)
-
-	testing.expectf(
-		t,
 		check_data2 == truth_data2,
-		"crypto/belt: expected TRUTH: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
+		"crypto/belt: expected: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
 		truth_data2,
 		block_data2,
 		iv_string,
@@ -1249,35 +1237,13 @@ test_encrypt_fmt :: proc (t: ^testing.T) {
 
 	testing.expectf(
 		t,
-		check_ok2 == truth_ok,
-		"crypto/belt: expected OK: %t for encrypt_fmt(%v, %s, %s), but got %t instead",
-		truth_ok,
-		block_data2,
-		iv_string,
-		key_string,
-		check_ok2,
-	)
-
-	testing.expectf(
-		t,
 		check_data3 == truth_data3,
-		"crypto/belt: expected TRUTH: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
+		"crypto/belt: expected: %v for encrypt_fmt(%v, %s, %s), but got %v instead",
 		truth_data3,
 		block_data3,
 		iv_string,
 		key_string,
 		check_data3,
-	)
-
-	testing.expectf(
-		t,
-		check_ok3 == truth_ok,
-		"crypto/belt: expected OK: %t for encrypt_fmt(%v, %s, %s), but got %t instead",
-		truth_ok,
-		block_data3,
-		iv_string,
-		key_string,
-		check_ok3,
 	)
 
 	free_all(context.temp_allocator)
@@ -1287,7 +1253,6 @@ test_encrypt_fmt :: proc (t: ^testing.T) {
 test_decrypt_fmt :: proc (t: ^testing.T) {
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
-	truth_ok   := true
 
 	m1 := 10; n1 :: 10
 	block_data1 := [n1]u16 { 6, 9, 3, 4, 7, 7, 0, 3, 5, 2, }
@@ -1315,14 +1280,14 @@ test_decrypt_fmt :: proc (t: ^testing.T) {
 	ctx: Context = ---
 	init(&ctx, key_data)
 
-	check_ok1 := decrypt_fmt(ctx, m1, iv_data, check_data1[:])
-	check_ok2 := decrypt_fmt(ctx, m2, iv_data, check_data2[:])
-	check_ok3 := decrypt_fmt(ctx, m3, iv_data, check_data3[:])
+	decrypt_fmt(ctx, m1, iv_data, check_data1[:])
+	decrypt_fmt(ctx, m2, iv_data, check_data2[:])
+	decrypt_fmt(ctx, m3, iv_data, check_data3[:])
 
 	testing.expectf(
 		t,
 		check_data1 == truth_data1,
-		"crypto/belt: expected TRUTH: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
+		"crypto/belt: expected: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
 		truth_data1,
 		block_data1,
 		iv_string,
@@ -1332,19 +1297,8 @@ test_decrypt_fmt :: proc (t: ^testing.T) {
 
 	testing.expectf(
 		t,
-		check_ok1 == truth_ok,
-		"crypto/belt: expected OK: %t for decrypt_fmt(%v, %s, %s), but got %t instead",
-		truth_ok,
-		block_data1,
-		iv_string,
-		key_string,
-		check_ok1,
-	)
-
-	testing.expectf(
-		t,
 		check_data2 == truth_data2,
-		"crypto/belt: expected TRUTH: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
+		"crypto/belt: expected: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
 		truth_data2,
 		block_data2,
 		iv_string,
@@ -1354,35 +1308,13 @@ test_decrypt_fmt :: proc (t: ^testing.T) {
 
 	testing.expectf(
 		t,
-		check_ok2 == truth_ok,
-		"crypto/belt: expected OK: %t for decrypt_fmt(%v, %s, %s), but got %t instead",
-		truth_ok,
-		block_data2,
-		iv_string,
-		key_string,
-		check_ok2,
-	)
-
-	testing.expectf(
-		t,
 		check_data3 == truth_data3,
-		"crypto/belt: expected TRUTH: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
+		"crypto/belt: expected: %v for decrypt_fmt(%v, %s, %s), but got %v instead",
 		truth_data3,
 		block_data3,
 		iv_string,
 		key_string,
 		check_data3,
-	)
-
-	testing.expectf(
-		t,
-		check_ok3 == truth_ok,
-		"crypto/belt: expected OK: %t for decrypt_fmt(%v, %s, %s), but got %t instead",
-		truth_ok,
-		block_data3,
-		iv_string,
-		key_string,
-		check_ok3,
 	)
 
 	free_all(context.temp_allocator)

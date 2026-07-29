@@ -8,7 +8,6 @@ package belt
 import "base:intrinsics"
 import "base:runtime"
 import "core:encoding/endian"
-import "core:math/big"
 
 @(private = "file", rodata)
 TABLE_H05 := [256]u32 {
@@ -1780,7 +1779,58 @@ find_b :: proc "contextless" (m, n: int) -> int #no_bounds_check {
 }
 
 @(private = "file")
-str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allocator) -> bool #no_bounds_check {
+big_add_u8le :: proc "contextless" (data: []byte, m: int) #no_bounds_check {
+	assert_contextless(m >= 0 && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(len(data) != 0, "crypto/belt: invalid DATA size")
+
+	num := uint(m)
+	for &item in data {
+		num += uint(item)
+		item = byte(num & uint(max(byte)))
+		num >>= BITS_PER_BYTE
+	}
+}
+
+@(private = "file")
+big_mul_u8le :: proc "contextless" (data: []byte, m: int) #no_bounds_check {
+	assert_contextless(m >= 0 && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(len(data) != 0, "crypto/belt: invalid DATA size")
+
+	num: uint
+	for &item in data {
+		num += uint(item) * uint(m)
+		item = byte(num & uint(max(byte)))
+		num >>= BITS_PER_BYTE
+	}
+}
+
+@(private = "file")
+big_div_u8le :: proc "contextless" (data: []byte, m: int) #no_bounds_check {
+	assert_contextless(m >= 0 && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(len(data) != 0, "crypto/belt: invalid DATA size")
+
+	rem, num: uint
+	#reverse for &item in data {
+		num = rem << BITS_PER_BYTE | uint(item)
+		item = byte(num / uint(m))
+		rem = num % uint(m)
+	}
+}
+
+@(private = "file")
+big_mod_u8le_to_uint :: proc "contextless" (data: []byte, m: int) -> uint #no_bounds_check {
+	assert_contextless(m >= 0 && m <= M_MAX_INT, "crypto/belt: invalid M value")
+	assert_contextless(len(data) != 0, "crypto/belt: invalid DATA size")
+
+	rem: uint
+	#reverse for &item in data {
+		rem = (rem << BITS_PER_BYTE | uint(item)) % uint(m)
+	}
+	return rem
+}
+
+@(private = "file")
+str2bin :: proc "contextless" (m: int, dst: []byte, src: []u16) #no_bounds_check  {
 	dst_size := len(dst); src_size := len(src)
 
 	assert_contextless(
@@ -1801,29 +1851,23 @@ str2bin :: proc (m: int, dst: []byte, src: []u16, allocator := context.allocator
 		"crypto/belt: invalid M value",
 	)
 
-	pow := BITS_PER_BYTE * dst_size
-	round, mod, ui, mi: big.Int
-	defer big.internal_int_destroy(&round, &mod, &ui, &mi)
-
-	err: big.Error
-	err = big.internal_int_power_of_two(&mod, pow, allocator);                                if err != .None { return false }
-	err = big.internal_int_set_from_integer(&mi, m, false, allocator);                        if err != .None { return false }
+	intrinsics.mem_zero(raw_data(dst), dst_size)
 
 	stream := src
-	err = big.internal_int_set_from_integer(&round, stream[src_size - 1], false, allocator);  if err != .None { return false }
-	for stream_index := src_size - 2; stream_index >= 0; stream_index -= 1 {
-		err = big.internal_int_set_from_integer(&ui, stream[stream_index], false, allocator); if err != .None { return false }
-		err = big.internal_int_mulmod(&round, &round, &mi, &mod, allocator);                  if err != .None { return false }
-		err = big.internal_int_addmod(&round, &round, &ui, &mod, allocator);                  if err != .None { return false }
-	}
+	stream_idx := src_size - 1
 
-	intrinsics.mem_zero(raw_data(dst), dst_size)
-	err = big.int_to_bytes_little(&round, dst, false, allocator)
-	return err == .None
+	big_add_u8le(dst, int(stream[stream_idx]))
+	stream_idx -= 1
+
+	for stream_idx >= 0 {
+		big_mul_u8le(dst, m)
+		big_add_u8le(dst, int(stream[stream_idx]))
+		stream_idx -= 1
+	}
 }
 
 @(private = "file")
-bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
+bin2str_add :: proc "contextless" (m: int, dst: []u16, src: []byte) #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
 	assert_contextless(
@@ -1844,25 +1888,15 @@ bin2str_add :: proc (m: int, dst: []u16, src: []byte, allocator := context.alloc
 		"crypto/belt: invalid M value",
 	)
 
-	round, ui, mi: big.Int
-	defer big.internal_int_destroy(&round, &ui, &mi)
-
-	err: big.Error
-	err = big.int_from_bytes_little(&round, src, false, allocator);    if err != .None { return false }
-	err = big.internal_int_set_from_integer(&mi, m, false, allocator); if err != .None { return false }
-
-	ui_u16: u16
 	for &stream in dst {
-		err = big.internal_int_mod(&ui, &round, &mi, allocator);       if err != .None { return false }
-		ui_u16, err = big.internal_int_get(&ui, u16);                  if err != .None { return false }
-		stream = u16((uint(stream) + uint(ui_u16)) % uint(m))
-		err = big.internal_int_div(&round, &round, &mi, allocator);    if err != .None { return false }
+		item := big_mod_u8le_to_uint(src, m)
+		stream = u16((uint(stream) + item) % uint(m))
+		big_div_u8le(src, m)
 	}
-	return true
 }
 
 @(private = "file")
-bin2str_sub :: proc (m: int, dst: []u16, src: []byte, allocator := context.allocator) -> bool #no_bounds_check {
+bin2str_sub :: proc "contextless" (m: int, dst: []u16, src: []byte) #no_bounds_check {
 	dst_size := len(dst); src_size := len(src)
 
 	assert_contextless(
@@ -1883,21 +1917,11 @@ bin2str_sub :: proc (m: int, dst: []u16, src: []byte, allocator := context.alloc
 		"crypto/belt: invalid M value",
 	)
 
-	round, ui, mi: big.Int
-	defer big.internal_int_destroy(&round, &ui, &mi)
-
-	err: big.Error
-	err = big.int_from_bytes_little(&round, src, false, allocator);    if err != .None { return false }
-	err = big.internal_int_set_from_integer(&mi, m, false, allocator); if err != .None { return false }
-
-	ui_u16: u16
 	for &stream in dst {
-		err = big.internal_int_mod(&ui, &round, &mi, allocator);       if err != .None { return false }
-		ui_u16, err = big.internal_int_get(&ui, u16);                  if err != .None { return false }
-		stream = u16((uint(stream) + uint(m) - uint(ui_u16)) % uint(m))
-		err = big.internal_int_div(&round, &round, &mi, allocator);    if err != .None { return false }
+		item := big_mod_u8le_to_uint(src, m)
+		stream = u16((uint(stream) + uint(m) - item) % uint(m))
+		big_div_u8le(src, m)
 	}
-	return true
 }
 
 @(private = "file")
@@ -1950,7 +1974,7 @@ roundf :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check {
 }
 
 /* Format preserving encryption: belt-encrypt-fmt */
-encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator := context.allocator) -> bool #no_bounds_check {
+encrypt_fmt :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []u16) #no_bounds_check {
 	data_size := len(data); iv_size := len(iv)
 
 	ensure_contextless(data_size >= M_MIN_INT && data_size <= M_MAX_INT, "crypto/belt: invalid DATA size")
@@ -2001,46 +2025,23 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
 	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
-	ok: bool
 	for round := 0; round <= 2; round += 1 {
-		if ok = str2bin(m, block2[:block2_size], data2, allocator); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
-
+		str2bin(m, block2[:block2_size], data2)
 		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], table2[2 * round])
 		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[2 * round])
 		roundf(ctx, block2[:])
+		bin2str_add(m, data1, block2[:])
 
-		if ok = bin2str_add(m, data1, block2[:]); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
-
-		if ok = str2bin(m, block1[:block1_size], data1, allocator); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
-
+		str2bin(m, block1[:block1_size], data1)
 		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], table2[2 * round + 1])
 		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[2 * round + 1])
 		roundf(ctx, block1[:])
-
-		if ok = bin2str_add(m, data2, block1[:]); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
+		bin2str_add(m, data2, block1[:])
 	}
-
-	return true
 }
 
 /* Format preserving encryption: belt-decrypt-fmt */
-decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator := context.allocator) -> bool #no_bounds_check {
+decrypt_fmt :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []u16) #no_bounds_check {
 	data_size := len(data); iv_size := len(iv)
 
 	ensure_contextless(data_size >= M_MIN_INT && data_size <= M_MAX_INT, "crypto/belt: invalid DATA size")
@@ -2091,40 +2092,17 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
 	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
-	ok: bool
 	for round := 2; round >= 0; round -= 1 {
-		if ok = str2bin(m, block1[:block1_size], data1, allocator); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
-
+		str2bin(m, block1[:block1_size], data1)
 		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], table2[2 * round + 1])
 		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[2 * round + 1])
 		roundf(ctx, block1[:])
+		bin2str_sub(m, data2, block1[:])
 
-		if ok = bin2str_sub(m, data2, block1[:]); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
-
-		if ok = str2bin(m, block2[:block2_size], data2, allocator); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
-
+		str2bin(m, block2[:block2_size], data2)
 		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], table2[2 * round])
 		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[2 * round])
 		roundf(ctx, block2[:])
-
-		if ok = bin2str_sub(m, data1, block2[:]); !ok {
-			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
-			intrinsics.mem_zero(raw_data(iv), iv_size)
-			return false
-		}
+		bin2str_sub(m, data1, block2[:])
 	}
-
-	return true
 }
