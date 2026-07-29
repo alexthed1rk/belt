@@ -1905,14 +1905,15 @@ encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_ch
 	assert_contextless(len(data) == BLOCK_SIZE_192_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	a :: 0; b :: 1; c :: 2
 	block1: Block128_U8 = ---
+	block2: Block192_U64 = ---
+
+	a :: 0; b :: 1; c :: 2
 	for round := 1; round <= 3; round += 1 {
 		u128_block(block1[:], u128(round))
 		encrypt_block(ctx, data[BLOCK_SIZE_64_U8:])
 		xor_block(data[BLOCK_SIZE_64_U8:], block1[:])
 
-		block2: Block192_U64 = ---
 		for i in 0..<BLOCK_SIZE_192_U64 {
 			block2[i] = endian.unchecked_get_u64le(data[BLOCK_SIZE_64_U8 * i: BLOCK_SIZE_64_U8 * i + BLOCK_SIZE_64_U8])
 		}
@@ -1957,6 +1958,9 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
+	backbuff1: Backbuff_U8 = ---
+	backbuff2: Backbuff_U8 = ---
+
 	block_s1: Block32_U8 = ---
 	block_s6: Block32_U8 = ---
 
@@ -1985,23 +1989,21 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	n1 := int((uint(data_size) + 1) / 2)
 	n2 := int(data_size / 2)
 
+	data1 := data[:n1]
+	data2 := data[n1:]
+
 	b1 := find_b(m, n1)
 	b2 := find_b(m, n2)
-
-	data_r1 := data[:n1]
-	data_r2 := data[n1:]
 
 	block1_size := BITS_PER_BYTE * b1
 	block2_size := BITS_PER_BYTE * b2
 
-	backbuff1: Backbuff_U8 = ---
-	backbuff2: Backbuff_U8 = ---
 	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
 	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
 	ok: bool
 	for round := 0; round <= 2; round += 1 {
-		if ok = str2bin(m, block2[:block2_size], data_r2, allocator); !ok {
+		if ok = str2bin(m, block2[:block2_size], data2, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
@@ -2011,13 +2013,13 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[2 * round])
 		roundf(ctx, block2[:])
 
-		if ok = bin2str_add(m, data_r1, block2[:]); !ok {
+		if ok = bin2str_add(m, data1, block2[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		if ok = str2bin(m, block1[:block1_size], data_r1, allocator); !ok {
+		if ok = str2bin(m, block1[:block1_size], data1, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
@@ -2027,7 +2029,7 @@ encrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[2 * round + 1])
 		roundf(ctx, block1[:])
 
-		if ok = bin2str_add(m, data_r2, block1[:]); !ok {
+		if ok = bin2str_add(m, data2, block1[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
@@ -2046,6 +2048,9 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	ensure_contextless(iv_size == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
+	backbuff1: Backbuff_U8 = ---
+	backbuff2: Backbuff_U8 = ---
+
 	block_s1: Block32_U8 = ---
 	block_s6: Block32_U8 = ---
 
@@ -2074,23 +2079,21 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 	n1 := int((uint(data_size) + 1) / 2)
 	n2 := int(data_size / 2)
 
+	data1 := data[:n1]
+	data2 := data[n1:]
+
 	b1 := find_b(m, n1)
 	b2 := find_b(m, n2)
-
-	data_r1 := data[:n1]
-	data_r2 := data[n1:]
 
 	block1_size := BITS_PER_BYTE * b1
 	block2_size := BITS_PER_BYTE * b2
 
-	backbuff1: Backbuff_U8 = ---
-	backbuff2: Backbuff_U8 = ---
 	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
 	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
 	ok: bool
 	for round := 2; round >= 0; round -= 1 {
-		if ok = str2bin(m, block1[:block1_size], data_r1, allocator); !ok {
+		if ok = str2bin(m, block1[:block1_size], data1, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
@@ -2100,13 +2103,13 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[2 * round + 1])
 		roundf(ctx, block1[:])
 
-		if ok = bin2str_sub(m, data_r2, block1[:]); !ok {
+		if ok = bin2str_sub(m, data2, block1[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
 		}
 
-		if ok = str2bin(m, block2[:block2_size], data_r2, allocator); !ok {
+		if ok = str2bin(m, block2[:block2_size], data2, allocator); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
@@ -2116,7 +2119,7 @@ decrypt_fmt :: proc (ctx: Context, m: int, iv: []byte, data: []u16, allocator :=
 		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[2 * round])
 		roundf(ctx, block2[:])
 
-		if ok = bin2str_sub(m, data_r1, block2[:]); !ok {
+		if ok = bin2str_sub(m, data1, block2[:]); !ok {
 			intrinsics.mem_zero(raw_data(data), size_of(u16)*data_size)
 			intrinsics.mem_zero(raw_data(iv), iv_size)
 			return false
