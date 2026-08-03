@@ -1623,10 +1623,10 @@ shr_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #n
 
 /* Software alternative to _mm_clmulepi64_si128(a, b, 0x00) */
 @(private = "file")
-clmul_low :: proc "contextless" (x, y: Block128_U32) -> Block128_U32 #no_bounds_check {
+soft_vmull_low_p64 :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
 	block: u128
-	a := (transmute(Block128_U64)x)[0]
-	b := (transmute(Block128_U64)y)[0]
+	a := (transmute(Block128_U64)a)[0]
+	b := (transmute(Block128_U64)b)[0]
 	for i := uint(0); i < BITS_PER_BYTE * size_of(u64); i += 1 {
 		block ~= (u128(a) << i) * u128((b >> i) & 1)
 	}
@@ -1635,10 +1635,10 @@ clmul_low :: proc "contextless" (x, y: Block128_U32) -> Block128_U32 #no_bounds_
 
 /* Software alternative to _mm_clmulepi64_si128(a, b, 0x11) */
 @(private = "file")
-clmul_high :: proc "contextless" (x, y: Block128_U32) -> Block128_U32 #no_bounds_check {
+soft_vmull_high_p64 :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
 	block: u128
-	a := (transmute(Block128_U64)x)[1]
-	b := (transmute(Block128_U64)y)[1]
+	a := (transmute(Block128_U64)a)[1]
+	b := (transmute(Block128_U64)b)[1]
 	for i := uint(0); i < BITS_PER_BYTE * size_of(u64); i += 1 {
 		block ~= (u128(a) << i) * u128((b >> i) & 1)
 	}
@@ -1652,13 +1652,13 @@ gf128mul :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_c
 	block0, block1, block2, block3, block4: Block128_U32
 	block5, block6, block7, block8, block9: Block128_U32
 	mask := Block128_U32 {max(u32), 0, 0, 0}
-	block0 = clmul_low(a, b)
-	block3 = clmul_high(a, b)
+	block0 = soft_vmull_low_p64(a, b)
+	block3 = soft_vmull_high_p64(a, b)
 	block1 = swizzle_block(a, 2, 3, 0, 1)
 	block2 = swizzle_block(b, 2, 3, 0, 1)
 	block1 = block1 ~ a
 	block2 = block2 ~ b
-	block1 = clmul_low(block1, block2)
+	block1 = soft_vmull_low_p64(block1, block2)
 	block1 = block1 ~ block0
 	block1 = block1 ~ block3
 	block2 = shuffle_block(block1, Block128_U32{}, 4, 5, 0, 1)
