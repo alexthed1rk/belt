@@ -7,6 +7,9 @@ Specification: [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://a
 ## How to Test
 Use `test_belt.bat` or `test_belt.sh`
 
+## How to Benchmark
+Use `belt_benchmark.bat` or `belt_benchmark.sh`
+
 ## TODO
 - [ ] SIMD hardware acceleration
 
