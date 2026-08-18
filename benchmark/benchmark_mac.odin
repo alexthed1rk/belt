@@ -135,9 +135,11 @@ do_bench_mac_hw :: proc(
 	for _ in 0 ..= options.rounds {
 		belt.derive_mac_hw(ctx, mac[:], buf)
 
-		// NOTE(alex): LLVM22 erases the derive_mac_hw on ARM64; so I put some extra unreachable branch
-		if len(os.args) == 1000 {
-			fmt.print(mac)
+		when ODIN_ARCH == .arm64 {
+			// NOTE(alex): LLVM22 erases the derive_mac_hw on ARM64; so I put some extra unreachable branch
+			if len(os.args) == 1000 {
+				fmt.print(mac)
+			}
 		}
 	}
 	options.count = options.rounds
