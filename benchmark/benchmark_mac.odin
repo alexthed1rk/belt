@@ -1,3 +1,4 @@
+#+build amd64,arm64
 package benchmark
 
 /* STB 34.101.31-2020                                    */
@@ -9,6 +10,8 @@ import "base:runtime"
 import "core:testing"
 import "core:text/table"
 import "core:time"
+import "core:os"
+import "core:fmt"
 import belt ".."
 
 @(private = "file")
@@ -27,27 +30,56 @@ benchmark_crypto_mac :: proc(t: ^testing.T) {
 	table.caption(&tbl, "MAC")
 	table.aligned_header_of_values(&tbl, .Right, "Algorithm", "Size", "Time", "Throughput")
 
-	for sz, _ in SIZES {
-		options := &time.Benchmark_Options{
-			rounds = ITERS,
-			bytes = sz,
-			setup = setup_sized_buf,
-			bench = do_bench_mac,
-			teardown = teardown_sized_buf,
+	{
+		for sz, _ in SIZES {
+			options := &time.Benchmark_Options{
+				rounds = ITERS,
+				bytes = sz,
+				setup = setup_sized_buf,
+				bench = do_bench_mac,
+				teardown = teardown_sized_buf,
+			}
+
+			err := time.benchmark(options, context.allocator)
+			testing.expect(t, err == nil)
+
+			time_per_iter := options.duration / ITERS
+			table.aligned_row_of_values(
+				&tbl,
+				.Right,
+				"BELT-MAC-256",
+				table.format(&tbl, "%d", sz),
+				table.format(&tbl, "%8M", time_per_iter),
+				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
+			)
 		}
+	}
 
-		err := time.benchmark(options, context.allocator)
-		testing.expect(t, err == nil)
+	table.row(&tbl)
 
-		time_per_iter := options.duration / ITERS
-		table.aligned_row_of_values(
-			&tbl,
-			.Right,
-			"BELT-MAC-256",
-			table.format(&tbl, "%d", sz),
-			table.format(&tbl, "%8M", time_per_iter),
-			table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
-		)
+	{
+		for sz, _ in SIZES {
+			options := &time.Benchmark_Options{
+				rounds = ITERS,
+				bytes = sz,
+				setup = setup_sized_buf,
+				bench = do_bench_mac_hw,
+				teardown = teardown_sized_buf,
+			}
+
+			err := time.benchmark(options, context.allocator)
+			testing.expect(t, err == nil)
+
+			time_per_iter := options.duration / ITERS
+			table.aligned_row_of_values(
+				&tbl,
+				.Right,
+				"BELT-MAC-HW-256",
+				table.format(&tbl, "%d", sz),
+				table.format(&tbl, "%8M", time_per_iter),
+				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
+			)
+		}
 	}
 
 	log_table(&tbl)
@@ -74,6 +106,39 @@ do_bench_mac :: proc(
 
 	for _ in 0 ..= options.rounds {
 		belt.derive_mac(ctx, mac[:], buf)
+	}
+	options.count = options.rounds
+	options.processed = options.rounds * options.bytes
+
+	return
+}
+
+@(private = "file")
+do_bench_mac_hw :: proc(
+	options: ^time.Benchmark_Options,
+	allocator := context.allocator,
+) -> (
+	err: time.Benchmark_Error,
+) {
+	buf := options.input
+	key := belt.Key256_U8 {
+		0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef,
+		0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef,
+		0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef,
+		0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef,
+	}
+
+	ctx: belt.Context = ---
+	belt.init(&ctx, key[:])
+	mac: belt.Mac64_U8 = ---
+
+	for _ in 0 ..= options.rounds {
+		belt.derive_mac_hw(ctx, mac[:], buf)
+
+		// NOTE(alex): LLVM22 erases the derive_mac_hw on ARM64; so I put some extra unreachable branch
+		if len(os.args) == 1000 {
+			fmt.print(mac)
+		}
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes

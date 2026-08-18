@@ -25,7 +25,7 @@ benchmark_crypto_aes :: proc(t: ^testing.T) {
 	table.init(&tbl)
 	defer table.destroy(&tbl)
 
-	table.caption(&tbl, "AES")
+	table.caption(&tbl, "AEAD")
 	table.aligned_header_of_values(&tbl, .Right, "Algorithm", "Size", "Time", "Throughput")
 
 	{

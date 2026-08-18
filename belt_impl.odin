@@ -9,7 +9,7 @@ import "base:intrinsics"
 import "base:runtime"
 import "core:encoding/endian"
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 TABLE_H05 := [256]u32 {
 	0x00001620, 0x00001280, 0x00001740, 0x00001900, 0x00000140, 0x00000100, 0x00001EA0, 0x00000760,
 	0x000006C0, 0x00000DA0, 0x00000000, 0x000011C0, 0x00000B00, 0x00000940, 0x00000BA0, 0x00001C80,
@@ -45,7 +45,7 @@ TABLE_H05 := [256]u32 {
 	0x00001220, 0x00000280, 0x00000200, 0x00001D40, 0x00000EE0, 0x00000D80, 0x00001B40, 0x000003A0,
 }
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 TABLE_H13 := [256]u32 {
 	0x00162000, 0x00128000, 0x00174000, 0x00190000, 0x00014000, 0x00010000, 0x001EA000, 0x00076000,
 	0x0006C000, 0x000DA000, 0x00000000, 0x0011C000, 0x000B0000, 0x00094000, 0x000BA000, 0x001C8000,
@@ -81,7 +81,7 @@ TABLE_H13 := [256]u32 {
 	0x00122000, 0x00028000, 0x00020000, 0x001D4000, 0x000EE000, 0x000D8000, 0x001B4000, 0x0003A000,
 }
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 TABLE_H21 := [256]u32 {
 	0x16200000, 0x12800000, 0x17400000, 0x19000000, 0x01400000, 0x01000000, 0x1EA00000, 0x07600000,
 	0x06C00000, 0x0DA00000, 0x00000000, 0x11C00000, 0x0B000000, 0x09400000, 0x0BA00000, 0x1C800000,
@@ -117,7 +117,7 @@ TABLE_H21 := [256]u32 {
 	0x12200000, 0x02800000, 0x02000000, 0x1D400000, 0x0EE00000, 0x0D800000, 0x1B400000, 0x03A00000,
 }
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 TABLE_H29 := [256]u32 {
 	0x20000016, 0x80000012, 0x40000017, 0x00000019, 0x40000001, 0x00000001, 0xA000001E, 0x60000007,
 	0xC0000006, 0xA000000D, 0x00000000, 0xC0000011, 0x0000000B, 0x40000009, 0xA000000B, 0x8000001C,
@@ -153,7 +153,7 @@ TABLE_H29 := [256]u32 {
 	0x20000012, 0x80000002, 0x00000002, 0x4000001D, 0xE000000E, 0x8000000D, 0x4000001B, 0xA0000003,
 }
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 B_KEYS := [288]int {
 	0x00b98895, 0x00b9912a, 0x00b999bf, 0x00b9a254, 0x00b9aae9, 0x00b9b37e, 0x00b9bc13, 0x00b9c4a8,
 	0x00b9cd3d, 0x00b9d5d2, 0x00b9de67, 0x00b9e6fc, 0x00b9ef91, 0x00b9f826, 0x00bfe447, 0x01794ddd,
@@ -193,7 +193,7 @@ B_KEYS := [288]int {
 	0x5fef76ae, 0x5ff03bf3, 0x5ff077e6, 0x5ff46c17, 0x5ff85e9d, 0x60182ac3, 0x60185586, 0x61b25c85,
 }
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 B_VALUES := [288]int {
 	0x0126, 0x024b, 0x0370, 0x0495, 0x05ba, 0x06df, 0x0804, 0x0929,
 	0x0a4e, 0x0b73, 0x0c98, 0x0dbd, 0x0ee2, 0x1007, 0x0d73, 0x0ba2,
@@ -233,19 +233,19 @@ B_VALUES := [288]int {
 	0x1ce7, 0x0e9a, 0x1d33, 0x1a53, 0x170b, 0x0a6a, 0x14d4, 0x1691,
 }
 
-@(private = "file")
+@(private = "package")
 BLOCK_T :: Block128_U8 {
 	0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
 	0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
 }
 
-@(private = "file")
+@(private = "package")
 BLOCK_C :: Block128_U8 {
 	0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
 
-@(private = "file")
+@(private = "package")
 BLOCK_H :: Block256_U8 {
 	0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
 	0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
@@ -253,85 +253,70 @@ BLOCK_H :: Block256_U8 {
 	0x25, 0x2e, 0x72, 0xc2, 0x02, 0xfd, 0xce, 0x0d,
 }
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_R1 := Block32_U8 {0xb1, 0x94, 0xba, 0xc8}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_R2 := Block32_U8 {0x5b, 0xe3, 0xd6, 0x12}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_R3 := Block32_U8 {0x5c, 0xb0, 0xc0, 0xff}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_R4 := Block32_U8 {0xe1, 0x2b, 0xdc, 0x1a}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_R5 := Block32_U8 {0xc1, 0xab, 0x76, 0x38}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_R6 := Block32_U8 {0xf3, 0x3c, 0x65, 0x7b}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_C1 := Block32_U8 {0xb1, 0x94, 0xba, 0xc8}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_C2 := Block32_U8 {0x0a, 0x08, 0xf5, 0x3b}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_C3 := Block32_U8 {0x36, 0x6d, 0x00, 0x8e}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_C4 := Block32_U8 {0x58, 0x4a, 0x5d, 0xe4}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_C5 := Block32_U8 {0x85, 0x04, 0xfa, 0x9d}
 
-@(private = "file", rodata)
+@(private = "package", rodata)
 BLOCK_C6 := Block32_U8 {0x1b, 0xb6, 0xc7, 0xac}
 
-@(private = "file", rodata)
-TABLE_K := [56]i32 {
-	0, 1, 2, 3, 4, 5, 6,
-	7, 0, 1, 2, 3, 4, 5,
-	6, 7, 0, 1, 2, 3, 4,
-	5, 6, 7, 0, 1, 2, 3,
-	4, 5, 6, 7, 0, 1, 2,
-	3, 4, 5, 6, 7, 0, 1,
-	2, 3, 4, 5, 6, 7, 0,
-	1, 2, 3, 4, 5, 6, 7,
-}
-
-@(private = "file")
-table_g05 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
-	table := (
+@(private = "package")
+table_g05 :: #force_inline proc "contextless" (x: u32) -> u32 #no_bounds_check {
+	return (
 		( TABLE_H05[ x       & 255 ] ) ~
 		( TABLE_H13[ x >>  8 & 255 ] ) ~
 		( TABLE_H21[ x >> 16 & 255 ] ) ~
 		( TABLE_H29[ x >> 24       ] )
 	)
-	return table
 }
 
-@(private = "file")
-table_g13 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
-	table := (
+@(private = "package")
+table_g13 :: #force_inline proc "contextless" (x: u32) -> u32 #no_bounds_check {
+	return (
 		( TABLE_H13[ x       & 255 ] ) ~
 		( TABLE_H21[ x >>  8 & 255 ] ) ~
 		( TABLE_H29[ x >> 16 & 255 ] ) ~
 		( TABLE_H05[ x >> 24       ] )
 	)
-	return table
 }
 
-@(private = "file")
-table_g21 :: proc "contextless" (x: u32) -> u32 #no_bounds_check {
-	table := (
+@(private = "package")
+table_g21 :: #force_inline proc "contextless" (x: u32) -> u32 #no_bounds_check {
+	return (
 		( TABLE_H21[ x       & 255 ] ) ~
 		( TABLE_H29[ x >>  8 & 255 ] ) ~
 		( TABLE_H05[ x >> 16 & 255 ] ) ~
 		( TABLE_H13[ x >> 24       ] )
 	)
-	return table
 }
 
 M_MIN_INT :: 2
@@ -378,22 +363,33 @@ Key256_U32   :: #type [KEY_SIZE_256_U32]u32
 Mac64_U8     :: #type [MAC_SIZE_64_U8]byte
 
 Context :: struct {
-	key:            Key256_U32,
+	key:            [56]u32,
 	is_initialized: bool,
 }
 
 init :: proc "contextless" (ctx: ^Context, key: []byte) #no_bounds_check {
 	ensure_contextless(len(key) == KEY_SIZE_256_U8, "crypto/belt: invalid KEY size")
 
-	for i in 0..<KEY_SIZE_256_U32 {
-		ctx.key[i] = endian.unchecked_get_u32le(key[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	_key_: Key256_U32 = ---
+	#unroll for i in 0..<KEY_SIZE_256_U32 {
+		_key_[i] = endian.unchecked_get_u32le(key[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
+	ctx.key = [56]u32 {
+		_key_[0], _key_[1], _key_[2], _key_[3], _key_[4], _key_[5], _key_[6],
+		_key_[7], _key_[0], _key_[1], _key_[2], _key_[3], _key_[4], _key_[5],
+		_key_[6], _key_[7], _key_[0], _key_[1], _key_[2], _key_[3], _key_[4],
+		_key_[5], _key_[6], _key_[7], _key_[0], _key_[1], _key_[2], _key_[3],
+		_key_[4], _key_[5], _key_[6], _key_[7], _key_[0], _key_[1], _key_[2],
+		_key_[3], _key_[4], _key_[5], _key_[6], _key_[7], _key_[0], _key_[1],
+		_key_[2], _key_[3], _key_[4], _key_[5], _key_[6], _key_[7], _key_[0],
+		_key_[1], _key_[2], _key_[3], _key_[4], _key_[5], _key_[6], _key_[7],
+	}
 	ctx.is_initialized = true
 }
 
 @(private = "file")
-xor_slice :: proc "contextless" (dst, src: []byte) #no_bounds_check {
+xor_slice :: #force_inline proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == len(src), "crypto/belt: DST size != SRC size")
 
 	for i in 0..<len(dst) {
@@ -402,46 +398,46 @@ xor_slice :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 }
 
 @(private = "file")
-xor_block :: proc "contextless" (dst, src: []byte) #no_bounds_check {
+xor_block :: #force_inline proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
 	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
 
-	for i in 0..<BLOCK_SIZE_128_U8 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U8 {
 		dst[i] ~= src[i]
 	}
 }
 
 @(private = "file")
-neg_block :: proc "contextless" (dst, src: []byte) #no_bounds_check {
+neg_block :: #force_inline proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
 	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
 
-	for i in 0..<BLOCK_SIZE_128_U8 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U8 {
 		dst[i] = ~src[i]
 	}
 }
 
 @(private = "file")
-inc_block :: proc "contextless" (data: []byte) #no_bounds_check {
+inc_block :: #force_inline proc "contextless" (data: []byte) #no_bounds_check {
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	block = transmute(Block128_U32)(transmute(u128)block + 1)
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
 @(private = "file")
-u128_block :: proc "contextless" (data: []byte, value: u128) #no_bounds_check {
+u128_block :: #force_inline proc "contextless" (data: []byte, value: u128) #no_bounds_check {
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 
 	block := transmute(Block128_U32)value
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
@@ -452,23 +448,23 @@ encrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	a :: 0; b :: 1; c :: 2; d :: 3
-	for round := i32(0); round <= 7; round += 1 {
-		block[b] ~= table_g05(block[a] + ctx.key[TABLE_K[7 * round]])
-		block[c] ~= table_g21(block[d] + ctx.key[TABLE_K[7 * round + 1]])
-		block[a] -= table_g13(block[b] + ctx.key[TABLE_K[7 * round + 2]])
+	#unroll for round in 0..<8 {
+		block[b] ~= table_g05(block[a] + ctx.key[7 * round])
+		block[c] ~= table_g21(block[d] + ctx.key[7 * round + 1])
+		block[a] -= table_g13(block[b] + ctx.key[7 * round + 2])
 
 		block[c] += block[b]
-		block[b] += table_g21(block[c] + ctx.key[TABLE_K[7 * round + 3]]) ~ u32(round + 1)
+		block[b] += table_g21(block[c] + ctx.key[7 * round + 3]) ~ u32(1 + round)
 		block[c] -= block[b]
 
-		block[d] += table_g13(block[c] + ctx.key[TABLE_K[7 * round + 4]])
-		block[b] ~= table_g21(block[a] + ctx.key[TABLE_K[7 * round + 5]])
-		block[c] ~= table_g05(block[d] + ctx.key[TABLE_K[7 * round + 6]])
+		block[d] += table_g13(block[c] + ctx.key[7 * round + 4])
+		block[b] ~= table_g21(block[a] + ctx.key[7 * round + 5])
+		block[c] ~= table_g05(block[d] + ctx.key[7 * round + 6])
 
 		block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
 		block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
@@ -479,7 +475,7 @@ encrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
 	block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
 
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
@@ -490,23 +486,23 @@ decrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
 	a :: 0; b :: 1; c :: 2; d :: 3
-	for round := i32(7); round >= 0; round -= 1 {
-		block[b] ~= table_g05(block[a] + ctx.key[TABLE_K[7 * round + 6]])
-		block[c] ~= table_g21(block[d] + ctx.key[TABLE_K[7 * round + 5]])
-		block[a] -= table_g13(block[b] + ctx.key[TABLE_K[7 * round + 4]])
+	#unroll for round in 0..<8 {
+		block[b] ~= table_g05(block[a] + ctx.key[55 - 7 * round])
+		block[c] ~= table_g21(block[d] + ctx.key[54 - 7 * round])
+		block[a] -= table_g13(block[b] + ctx.key[53 - 7 * round])
 
 		block[c] += block[b]
-		block[b] += table_g21(block[c] + ctx.key[TABLE_K[7 * round + 3]]) ~ u32(round + 1)
+		block[b] += table_g21(block[c] + ctx.key[52 - 7 * round]) ~ u32(8 - round)
 		block[c] -= block[b]
 
-		block[d] += table_g13(block[c] + ctx.key[TABLE_K[7 * round + 2]])
-		block[b] ~= table_g21(block[a] + ctx.key[TABLE_K[7 * round + 1]])
-		block[c] ~= table_g05(block[d] + ctx.key[TABLE_K[7 * round]])
+		block[d] += table_g13(block[c] + ctx.key[51 - 7 * round])
+		block[b] ~= table_g21(block[a] + ctx.key[50 - 7 * round])
+		block[c] ~= table_g05(block[d] + ctx.key[49 - 7 * round])
 
 		block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
 		block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
@@ -517,7 +513,7 @@ decrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
 	block[a] ~= block[d]; block[d] ~= block[a]; block[a] ~= block[d]
 
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
@@ -843,11 +839,11 @@ decrypt_ctr :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 }
 
 @(private = "file")
-table_φ1 :: proc "contextless" (data: []byte) #no_bounds_check {
+table_φ1 :: #force_inline proc "contextless" (data: []byte) #no_bounds_check {
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
@@ -857,17 +853,17 @@ table_φ1 :: proc "contextless" (data: []byte) #no_bounds_check {
 	block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
 	block[d] ~= block[a]
 
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
 
 @(private = "file")
-table_φ2 :: proc "contextless" (data: []byte) #no_bounds_check {
+table_φ2 :: #force_inline proc "contextless" (data: []byte) #no_bounds_check {
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
@@ -877,7 +873,7 @@ table_φ2 :: proc "contextless" (data: []byte) #no_bounds_check {
 	block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
 	block[a] ~= block[b]
 
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 	}
 }
@@ -1507,14 +1503,14 @@ expand_key :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 		e :: 4; f :: 5; g :: 6; h :: 7
 
 		block: Block256_U32 = ---
-		for i in 0..<BLOCK_SIZE_192_U32 {
+		#unroll for i in 0..<BLOCK_SIZE_192_U32 {
 			block[i] = endian.unchecked_get_u32le(src[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 		}
 
 		block[g] = block[a] ~ block[b] ~ block[c]
 		block[h] = block[d] ~ block[e] ~ block[f]
 
-		for i in 0..<BLOCK_SIZE_256_U32 {
+		#unroll for i in 0..<BLOCK_SIZE_256_U32 {
 			endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 		}
 	} else if src_size == KEY_SIZE_256_U8 {
@@ -1570,9 +1566,9 @@ derive_key :: proc "contextless" (dv, iv, dst, src: []byte) #no_bounds_check {
 
 /* Reorder the lanes of a Block128_U32 block */
 @(private = "file")
-swizzle_block :: proc "contextless" (x: Block128_U32, indices: ..int) -> Block128_U32 #no_bounds_check {
+swizzle_block :: #force_inline proc "contextless" (x: Block128_U32, indices: ..int) -> Block128_U32 #no_bounds_check {
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		block[i] = x[indices[i]]
 	}
 	return block
@@ -1580,9 +1576,9 @@ swizzle_block :: proc "contextless" (x: Block128_U32, indices: ..int) -> Block12
 
 /* Reorder the lanes of two Block128_U32 blocks */
 @(private = "file")
-shuffle_block :: proc "contextless" (a, b: Block128_U32, indices: ..int) -> Block128_U32 #no_bounds_check {
+shuffle_block :: #force_inline proc "contextless" (a, b: Block128_U32, indices: ..int) -> Block128_U32 #no_bounds_check {
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		idx := indices[i]
 		if idx < BLOCK_SIZE_128_U32 {
 			block[i] = a[idx]
@@ -1595,9 +1591,9 @@ shuffle_block :: proc "contextless" (a, b: Block128_U32, indices: ..int) -> Bloc
 
 /* Shift left lanes of a Block128_U32 block */
 @(private = "file")
-shl_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #no_bounds_check {
+shl_block :: #force_inline proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #no_bounds_check {
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		if shift < BITS_PER_BYTE * size_of(u32) {
 			block[i] = a[i] << shift
 		} else {
@@ -1609,9 +1605,9 @@ shl_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #n
 
 /* Shift right lanes of a Block128_U32 block */
 @(private = "file")
-shr_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #no_bounds_check {
+shr_block :: #force_inline proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #no_bounds_check {
 	block: Block128_U32 = ---
-	for i in 0..<BLOCK_SIZE_128_U32 {
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 		if shift < BITS_PER_BYTE * size_of(u32) {
 			block[i] = a[i] >> shift
 		} else {
@@ -1623,24 +1619,24 @@ shr_block :: proc "contextless" (a: Block128_U32, shift: u32) -> Block128_U32 #n
 
 /* Software alternative to _mm_clmulepi64_si128(a, b, 0x00) */
 @(private = "file")
-soft_vmull_low_p64 :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
+soft_vmull_low_p64 :: #force_inline proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
 	block: u128
 	a := (transmute(Block128_U64)a)[0]
 	b := (transmute(Block128_U64)b)[0]
-	for i := uint(0); i < BITS_PER_BYTE * size_of(u64); i += 1 {
-		block ~= (u128(a) << i) * u128((b >> i) & 1)
+	#unroll for i in 0..< BITS_PER_BYTE * size_of(u64) {
+		block ~= (u128(a) << uint(i)) * u128((b >> uint(i)) & 1)
 	}
 	return transmute(Block128_U32)block
 }
 
 /* Software alternative to _mm_clmulepi64_si128(a, b, 0x11) */
 @(private = "file")
-soft_vmull_high_p64 :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
+soft_vmull_high_p64 :: #force_inline proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
 	block: u128
 	a := (transmute(Block128_U64)a)[1]
 	b := (transmute(Block128_U64)b)[1]
-	for i := uint(0); i < BITS_PER_BYTE * size_of(u64); i += 1 {
-		block ~= (u128(a) << i) * u128((b >> i) & 1)
+	#unroll for i in 0..< BITS_PER_BYTE * size_of(u64) {
+		block ~= (u128(a) << uint(i)) * u128((b >> uint(i)) & 1)
 	}
 	return transmute(Block128_U32)block
 }
@@ -1693,29 +1689,29 @@ mul_block :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 		if is_hardware_accelerated() {
 			dst_block := intrinsics.unaligned_load((^Simd_Block128)(raw_data(dst)))
 			src_block := intrinsics.unaligned_load((^Simd_Block128)(raw_data(src)))
-			dst_block  = gf128mulhw(dst_block, src_block)
+			dst_block  = gf128mul_hw(dst_block, src_block)
 			intrinsics.unaligned_store((^Simd_Block128)(raw_data(dst)), dst_block)
 		} else {
 			dst_block: Block128_U32 = ---
 			src_block: Block128_U32 = ---
-			for i in 0..<BLOCK_SIZE_128_U32 {
+			#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 				src_block[i] = endian.unchecked_get_u32le(src[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 				dst_block[i] = endian.unchecked_get_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 			}
 			dst_block = gf128mul(dst_block, src_block)
-			for i in 0..<BLOCK_SIZE_128_U32 {
+			#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 				endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], dst_block[i])
 			}
 		}
 	} else {
 		dst_block: Block128_U32 = ---
 		src_block: Block128_U32 = ---
-		for i in 0..<BLOCK_SIZE_128_U32 {
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 			src_block[i] = endian.unchecked_get_u32le(src[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 			dst_block[i] = endian.unchecked_get_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 		}
 		dst_block = gf128mul(dst_block, src_block)
-		for i in 0..<BLOCK_SIZE_128_U32 {
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
 			endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], dst_block[i])
 		}
 	}
@@ -1933,12 +1929,12 @@ encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_ch
 	block2: Block192_U64 = ---
 
 	a :: 0; b :: 1; c :: 2
-	for round := 1; round <= 3; round += 1 {
+	#unroll for round in 1..=3 {
 		u128_block(block1[:], u128(round))
 		encrypt_block(ctx, data[BLOCK_SIZE_64_U8:])
 		xor_block(data[BLOCK_SIZE_64_U8:], block1[:])
 
-		for i in 0..<BLOCK_SIZE_192_U64 {
+		#unroll for i in 0..<BLOCK_SIZE_192_U64 {
 			block2[i] = endian.unchecked_get_u64le(data[BLOCK_SIZE_64_U8 * i: BLOCK_SIZE_64_U8 * i + BLOCK_SIZE_64_U8])
 		}
 
@@ -1946,7 +1942,7 @@ encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_ch
 		block2[b] ~= block2[c]; block2[c] ~= block2[b]; block2[b] ~= block2[c]
 		block2[c] ~= block2[a]
 
-		for i in 0..<BLOCK_SIZE_192_U64 {
+		#unroll for i in 0..<BLOCK_SIZE_192_U64 {
 			endian.unchecked_put_u64le(data[BLOCK_SIZE_64_U8 * i: BLOCK_SIZE_64_U8 * i + BLOCK_SIZE_64_U8], block2[i])
 		}
 	}
@@ -2025,7 +2021,7 @@ encrypt_fmt :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []u16
 	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
 	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
-	for round := 0; round <= 2; round += 1 {
+	#unroll for round in 0..=2 {
 		str2bin(m, block2[:block2_size], data2)
 		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], table2[2 * round])
 		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[2 * round])
@@ -2033,8 +2029,8 @@ encrypt_fmt :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []u16
 		bin2str_add(m, data1, block2[:])
 
 		str2bin(m, block1[:block1_size], data1)
-		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], table2[2 * round + 1])
-		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[2 * round + 1])
+		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], table2[1 + 2 * round])
+		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[1 + 2 * round])
 		roundf(ctx, block1[:])
 		bin2str_add(m, data2, block1[:])
 	}
@@ -2092,16 +2088,16 @@ decrypt_fmt :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []u16
 	block1 := backbuff1[:block1_size + BLOCK_SIZE_64_U8]
 	block2 := backbuff2[:block2_size + BLOCK_SIZE_64_U8]
 
-	for round := 2; round >= 0; round -= 1 {
+	#unroll for round in 0..=2 {
 		str2bin(m, block1[:block1_size], data1)
-		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], table2[2 * round + 1])
-		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[2 * round + 1])
+		copy_slice(block1[block1_size + BLOCK_SIZE_32_U8:], table2[5 - 2 * round])
+		copy_slice(block1[block1_size: block1_size + BLOCK_SIZE_32_U8], table1[5 - 2 * round])
 		roundf(ctx, block1[:])
 		bin2str_sub(m, data2, block1[:])
 
 		str2bin(m, block2[:block2_size], data2)
-		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], table2[2 * round])
-		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[2 * round])
+		copy_slice(block2[block2_size + BLOCK_SIZE_32_U8:], table2[4 - 2 * round])
+		copy_slice(block2[block2_size: block2_size + BLOCK_SIZE_32_U8], table1[4 - 2 * round])
 		roundf(ctx, block2[:])
 		bin2str_sub(m, data1, block2[:])
 	}
