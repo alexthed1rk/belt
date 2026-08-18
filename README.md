@@ -2,7 +2,8 @@
 Belarusian information technology and security
 encryption and integrity control algorithms
 
-Specification: [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://apmi.bsu.by/assets/files/std/belt-spec371.pdf)
+- **Specification (EN-US):** [https://github.com/bcrypto/belt-bign-bake](https://github.com/bcrypto/belt-bign-bake)
+- **Specification (RU-BY):** [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://apmi.bsu.by/assets/files/std/belt-spec371.pdf)
 
 ## How to Test
 Use `test_belt.bat` or `test_belt.sh`
