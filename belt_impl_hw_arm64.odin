@@ -74,8 +74,52 @@ gf128mul_hw :: proc "contextless" (a, b: arm.uint32x4_t) -> arm.uint32x4_t {
 	return arm.veorq_u32(block0, block3)
 }
 
+/* Block cipher: belt-encrypt-block */
+@(enable_target_feature="neon")
+encrypt_block_hw :: proc "contextless" (ctx: Context, block: []byte) #no_bounds_check {
+	assert_contextless(len(block) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
+	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_block_: arm.uint32x4_t
+	stream: Block128_U32
+
+	intrinsics.mem_copy_non_overlapping(
+		&_block_,
+		raw_data(block),
+		BLOCK_SIZE_128_U8,
+	)
+
+	a :: 0; b :: 1; c :: 2; d :: 3
+	#unroll for round in 0..<8 {
+		stream = transmute(Block128_U32)_block_
+
+		stream[b] ~= table_g05(stream[a] + ctx.key[7 * round])
+		stream[c] ~= table_g21(stream[d] + ctx.key[7 * round + 1])
+		stream[a] -= table_g13(stream[b] + ctx.key[7 * round + 2])
+
+		stream[c] += stream[b]
+		stream[b] += table_g21(stream[c] + ctx.key[7 * round + 3]) ~ u32(1 + round)
+		stream[c] -= stream[b]
+
+		stream[d] += table_g13(stream[c] + ctx.key[7 * round + 4])
+		stream[b] ~= table_g21(stream[a] + ctx.key[7 * round + 5])
+		stream[c] ~= table_g05(stream[d] + ctx.key[7 * round + 6])
+
+		_block_ = transmute(arm.uint32x4_t)stream
+		_block_ = simd.shuffle(_block_, _block_, 1, 3, 0, 2)
+	}
+
+	_block_ = simd.shuffle(_block_, _block_, 1, 3, 0, 2)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(block),
+		&_block_,
+		BLOCK_SIZE_128_U8,
+	)
+}
+
 @(require_results, private = "file", enable_target_feature="neon")
-encrypt_block_hw :: proc "contextless" (ctx: Context, block: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
+encrypt_block_raw_hw :: proc "contextless" (ctx: Context, block: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
 	_block_ := block
@@ -139,7 +183,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 	stream := data
 	stream_size := data_size
 
-	block1 = encrypt_block_hw(ctx, block1)
+	block1 = encrypt_block_raw_hw(ctx, block1)
 	for stream_size > BLOCK_SIZE_128_U8 {
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -148,7 +192,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 		)
 
 		block2 = arm.veorq_u32(block2, _stream_)
-		block2 = encrypt_block_hw(ctx, block2)
+		block2 = encrypt_block_raw_hw(ctx, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -180,7 +224,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 		block2 = arm.veorq_u32(block2, _stream_)
 	}
 
-	block2 = encrypt_block_hw(ctx, block2)
+	block2 = encrypt_block_raw_hw(ctx, block2)
 	_bytes_ = transmute(Block128_U8)block2
 
 	intrinsics.mem_copy_non_overlapping(
@@ -189,4 +233,3 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 		MAC_SIZE_64_U8,
 	)
 }
-

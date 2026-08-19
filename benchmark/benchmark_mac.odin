@@ -106,6 +106,12 @@ do_bench_mac :: proc(
 
 	for _ in 0 ..= options.rounds {
 		belt.derive_mac(ctx, mac[:], buf)
+
+		// NOTE(alex): odin-nightly erases the derive_mac;
+		// so I put some extra unreachable branch
+		if len(os.args) == 1000 {
+			fmt.print(mac)
+		}
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes

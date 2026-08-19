@@ -480,6 +480,38 @@ encrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	}
 }
 
+/* Block cipher: belt-encrypt-block */
+@(require_results, private = "file")
+encrypt_block_raw :: proc "contextless" (ctx: Context, block: Block128_U32) -> Block128_U32 #no_bounds_check {
+	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	stream := block
+	a :: 0; b :: 1; c :: 2; d :: 3
+	#unroll for round in 0..<8 {
+		stream[b] ~= table_g05(stream[a] + ctx.key[7 * round])
+		stream[c] ~= table_g21(stream[d] + ctx.key[7 * round + 1])
+		stream[a] -= table_g13(stream[b] + ctx.key[7 * round + 2])
+
+		stream[c] += stream[b]
+		stream[b] += table_g21(stream[c] + ctx.key[7 * round + 3]) ~ u32(1 + round)
+		stream[c] -= stream[b]
+
+		stream[d] += table_g13(stream[c] + ctx.key[7 * round + 4])
+		stream[b] ~= table_g21(stream[a] + ctx.key[7 * round + 5])
+		stream[c] ~= table_g05(stream[d] + ctx.key[7 * round + 6])
+
+		stream[a] ~= stream[b]; stream[b] ~= stream[a]; stream[a] ~= stream[b]
+		stream[c] ~= stream[d]; stream[d] ~= stream[c]; stream[c] ~= stream[d]
+		stream[b] ~= stream[c]; stream[c] ~= stream[b]; stream[b] ~= stream[c]
+	}
+
+	stream[a] ~= stream[b]; stream[b] ~= stream[a]; stream[a] ~= stream[b]
+	stream[c] ~= stream[d]; stream[d] ~= stream[c]; stream[c] ~= stream[d]
+	stream[b] ~= stream[c]; stream[c] ~= stream[b]; stream[b] ~= stream[c]
+
+	return stream
+}
+
 /* Block cipher: belt-decrypt-block */
 decrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check {
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
@@ -838,44 +870,26 @@ decrypt_ctr :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	}
 }
 
-@(private = "file")
-table_φ1 :: #force_inline proc "contextless" (data: []byte) #no_bounds_check {
-	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
-
-	block: Block128_U32 = ---
-	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
-	}
-
+@(require_results, private = "file")
+table_φ1 :: #force_inline proc "contextless" (block: Block128_U32) -> Block128_U32 #no_bounds_check {
+	stream := block
 	a :: 0; b :: 1; c :: 2; d :: 3
-	block[a] ~= block[d]; block[d] ~= block[a]; block[a] ~= block[d]
-	block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
-	block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
-	block[d] ~= block[a]
-
-	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
-	}
+	stream[a] ~= stream[d]; stream[d] ~= stream[a]; stream[a] ~= stream[d]
+	stream[a] ~= stream[b]; stream[b] ~= stream[a]; stream[a] ~= stream[b]
+	stream[b] ~= stream[c]; stream[c] ~= stream[b]; stream[b] ~= stream[c]
+	stream[d] ~= stream[a]
+	return stream
 }
 
-@(private = "file")
-table_φ2 :: #force_inline proc "contextless" (data: []byte) #no_bounds_check {
-	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
-
-	block: Block128_U32 = ---
-	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
-	}
-
+@(require_results, private = "file")
+table_φ2 :: #force_inline proc "contextless" (block: Block128_U32) -> Block128_U32 #no_bounds_check {
+	stream := block
 	a :: 0; b :: 1; c :: 2; d :: 3
-	block[a] ~= block[d]; block[d] ~= block[a]; block[a] ~= block[d]
-	block[b] ~= block[d]; block[d] ~= block[b]; block[b] ~= block[d]
-	block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
-	block[a] ~= block[b]
-
-	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
-	}
+	stream[a] ~= stream[d]; stream[d] ~= stream[a]; stream[a] ~= stream[d]
+	stream[b] ~= stream[d]; stream[d] ~= stream[b]; stream[b] ~= stream[d]
+	stream[c] ~= stream[d]; stream[d] ~= stream[c]; stream[c] ~= stream[d]
+	stream[a] ~= stream[b]
+	return stream
 }
 
 /* Message authentication code derivation: belt-derive-mac */
@@ -886,37 +900,62 @@ derive_mac :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block1: Block128_U8
-	block2: Block128_U8
-	block3: Block128_U8
+	_bytes_: Block128_U8
+	_stream_: Block128_U32
+
+	block1: Block128_U32
+	block2: Block128_U32
 
 	stream := data
 	stream_size := data_size
-	encrypt_block(ctx, block2[:])
+
+	block1 = encrypt_block_raw(ctx, block1)
 	for stream_size > BLOCK_SIZE_128_U8 {
-		xor_block(block3[:], stream[:BLOCK_SIZE_128_U8])
-		encrypt_block(ctx, block3[:])
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block2 ~= _stream_
+		block2 = encrypt_block_raw(ctx, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size == BLOCK_SIZE_128_U8 {
-		table_φ1(block2[:])
-		xor_block(block3[:], block2[:])
-		xor_block(block3[:], stream[:])
-	} else {
-		ψ_unit :: 0x80
-		copy_slice(block1[:stream_size], stream[:])
-		block1[stream_size] = ψ_unit
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
 
-		table_φ2(block2[:])
-		xor_block(block3[:], block2[:])
-		xor_block(block3[:], block1[:])
+		block1 = table_φ1(block1)
+		block2 = block2 ~ block1 ~ _stream_
+	} else {
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		ψ_unit :: 0x80
+		_bytes_[stream_size] = ψ_unit
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block1 = table_φ2(block1)
+		block2 = block2 ~ block1 ~ _stream_
 	}
 
-	encrypt_block(ctx, block3[:])
-	copy_slice(mac[:], block3[:MAC_SIZE_64_U8])
+	block2 = encrypt_block_raw(ctx, block2)
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		endian.unchecked_put_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block2[i])
+	}
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(mac),
+		&_bytes_,
+		MAC_SIZE_64_U8,
+	)
 }
 
 /* Authenticated encryption: belt-seal-dwp */

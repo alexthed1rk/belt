@@ -10,6 +10,35 @@ import "core:encoding/hex"
 import "core:testing"
 
 @(test)
+test_encrypt_block_hw :: proc (t: ^testing.T) {
+	key_string   := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
+
+	block_string := "b194bac80a08f53b366d008e584a5de4"
+	truth_string := "69cca1c93557c9e3d66bc3e0fa88fa6e"
+
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+	key_data,   _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	encrypt_block_hw(ctx, block_data)
+	check_string := string(hex.encode(block_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected: %s for encrypt_block_hw(%s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		key_string,
+		check_string,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
 test_derive_mac_hw :: proc (t: ^testing.T) {
 	key_string        := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 
@@ -38,7 +67,7 @@ test_derive_mac_hw :: proc (t: ^testing.T) {
 	testing.expectf(
 		t,
 		check_mac_string1 == truth_mac_string1,
-		"crypto/belt: expected: %s for derive_mac(%s, %s), but got %s instead",
+		"crypto/belt: expected: %s for derive_mac_hw(%s, %s), but got %s instead",
 		truth_mac_string1,
 		block_string1,
 		key_string,
@@ -48,7 +77,7 @@ test_derive_mac_hw :: proc (t: ^testing.T) {
 	testing.expectf(
 		t,
 		check_mac_string2 == truth_mac_string2,
-		"crypto/belt: expected: %s for derive_mac(%s, %s), but got %s instead",
+		"crypto/belt: expected: %s for derive_mac_hw(%s, %s), but got %s instead",
 		truth_mac_string2,
 		block_string2,
 		key_string,
