@@ -19,7 +19,7 @@ ITERS :: 10000
 SIZES := []int{64, 1024, 65536}
 
 @(test)
-benchmark_crypto_aes :: proc(t: ^testing.T) {
+benchmark_crypto_aead :: proc(t: ^testing.T) {
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
 
 	tbl: table.Table
