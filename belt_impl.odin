@@ -234,7 +234,7 @@ B_VALUES := [288]int {
 }
 
 @(private = "package")
-BLOCK_T :: Block128_U8 {
+BLOCK_T := Block128_U8 {
 	0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
 	0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
 }
@@ -447,40 +447,17 @@ encrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block: Block128_U32 = ---
+	stream: Block128_U32 = ---
 	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		stream[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
-	a :: 0; b :: 1; c :: 2; d :: 3
-	#unroll for round in 0..<8 {
-		block[b] ~= table_g05(block[a] + ctx.key[7 * round])
-		block[c] ~= table_g21(block[d] + ctx.key[7 * round + 1])
-		block[a] -= table_g13(block[b] + ctx.key[7 * round + 2])
-
-		block[c] += block[b]
-		block[b] += table_g21(block[c] + ctx.key[7 * round + 3]) ~ u32(1 + round)
-		block[c] -= block[b]
-
-		block[d] += table_g13(block[c] + ctx.key[7 * round + 4])
-		block[b] ~= table_g21(block[a] + ctx.key[7 * round + 5])
-		block[c] ~= table_g05(block[d] + ctx.key[7 * round + 6])
-
-		block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
-		block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
-		block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
-	}
-
-	block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
-	block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
-	block[b] ~= block[c]; block[c] ~= block[b]; block[b] ~= block[c]
-
+	stream = encrypt_block_raw(ctx, stream)
 	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], stream[i])
 	}
 }
 
-/* Block cipher: belt-encrypt-block */
 @(require_results, private = "file")
 encrypt_block_raw :: proc "contextless" (ctx: Context, block: Block128_U32) -> Block128_U32 #no_bounds_check {
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
@@ -517,37 +494,46 @@ decrypt_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_chec
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block: Block128_U32 = ---
+	stream: Block128_U32 = ---
 	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		stream[i] = endian.unchecked_get_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 	}
 
+	stream = decrypt_block_raw(ctx, stream)
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], stream[i])
+	}
+}
+
+@(require_results, private = "file")
+decrypt_block_raw :: proc "contextless" (ctx: Context, block: Block128_U32) -> Block128_U32 #no_bounds_check {
+	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	stream := block
 	a :: 0; b :: 1; c :: 2; d :: 3
 	#unroll for round in 0..<8 {
-		block[b] ~= table_g05(block[a] + ctx.key[55 - 7 * round])
-		block[c] ~= table_g21(block[d] + ctx.key[54 - 7 * round])
-		block[a] -= table_g13(block[b] + ctx.key[53 - 7 * round])
+		stream[b] ~= table_g05(stream[a] + ctx.key[55 - 7 * round])
+		stream[c] ~= table_g21(stream[d] + ctx.key[54 - 7 * round])
+		stream[a] -= table_g13(stream[b] + ctx.key[53 - 7 * round])
 
-		block[c] += block[b]
-		block[b] += table_g21(block[c] + ctx.key[52 - 7 * round]) ~ u32(8 - round)
-		block[c] -= block[b]
+		stream[c] += stream[b]
+		stream[b] += table_g21(stream[c] + ctx.key[52 - 7 * round]) ~ u32(8 - round)
+		stream[c] -= stream[b]
 
-		block[d] += table_g13(block[c] + ctx.key[51 - 7 * round])
-		block[b] ~= table_g21(block[a] + ctx.key[50 - 7 * round])
-		block[c] ~= table_g05(block[d] + ctx.key[49 - 7 * round])
+		stream[d] += table_g13(stream[c] + ctx.key[51 - 7 * round])
+		stream[b] ~= table_g21(stream[a] + ctx.key[50 - 7 * round])
+		stream[c] ~= table_g05(stream[d] + ctx.key[49 - 7 * round])
 
-		block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
-		block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
-		block[a] ~= block[d]; block[d] ~= block[a]; block[a] ~= block[d]
+		stream[a] ~= stream[b]; stream[b] ~= stream[a]; stream[a] ~= stream[b]
+		stream[c] ~= stream[d]; stream[d] ~= stream[c]; stream[c] ~= stream[d]
+		stream[a] ~= stream[d]; stream[d] ~= stream[a]; stream[a] ~= stream[d]
 	}
 
-	block[a] ~= block[b]; block[b] ~= block[a]; block[a] ~= block[b]
-	block[c] ~= block[d]; block[d] ~= block[c]; block[c] ~= block[d]
-	block[a] ~= block[d]; block[d] ~= block[a]; block[a] ~= block[d]
+	stream[a] ~= stream[b]; stream[b] ~= stream[a]; stream[a] ~= stream[b]
+	stream[c] ~= stream[d]; stream[d] ~= stream[c]; stream[c] ~= stream[d]
+	stream[a] ~= stream[d]; stream[d] ~= stream[a]; stream[a] ~= stream[d]
 
-	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		endian.unchecked_put_u32le(data[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
-	}
+	return stream
 }
 
 /* Wide block cipher: belt-encrypt-wide-block */
@@ -557,24 +543,53 @@ encrypt_wide_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 	assert_contextless(data_size >= BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block1: Block128_U8 = ---
-	block2: Block128_U8 = ---
+	_stream_: Block128_U32
+
+	block1: Block128_U32 = ---
+	block2: Block128_U32 = ---
 
 	num_rounds := 2 * ((uint(data_size) + BLOCK_SIZE_128_U8 - 1) / BLOCK_SIZE_128_U8)
 	for round := uint(1); round <= num_rounds; round += 1 {
-		copy_slice(block1[:], data[:BLOCK_SIZE_128_U8])
-		for i := BLOCK_SIZE_128_U8; i + BLOCK_SIZE_128_U8 < data_size; i += BLOCK_SIZE_128_U8 {
-			xor_block(block1[:], data[i: i + BLOCK_SIZE_128_U8])
+
+		stream := data
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block1 = _stream_
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size := data_size - BLOCK_SIZE_128_U8
+
+		for stream_size > BLOCK_SIZE_128_U8 {
+			#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+				_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+			}
+
+			block1 = block1 ~ _stream_
+
+			stream = stream[BLOCK_SIZE_128_U8:]
+			stream_size -= BLOCK_SIZE_128_U8
 		}
 
 		copy_slice(data[:data_size - BLOCK_SIZE_128_U8], data[BLOCK_SIZE_128_U8:])
-		copy_slice(data[data_size - BLOCK_SIZE_128_U8:], block1[:])
 
-		encrypt_block(ctx, block1[:])
-		u128_block(block2[:], u128(round))
+		stream = data[data_size - BLOCK_SIZE_128_U8:]
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block1[i])
+		}
 
-		xor_block(block1[:], block2[:])
-		xor_block(data[data_size - BLOCK_SIZE_256_U8: data_size - BLOCK_SIZE_128_U8], block1[:])
+		stream = data[data_size - BLOCK_SIZE_256_U8: data_size - BLOCK_SIZE_128_U8]
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block1 = encrypt_block_raw(ctx, block1)
+		block2 = transmute(Block128_U32)u128(round)
+		block1 = block1 ~ block2 ~ _stream_
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block1[i])
+		}
 	}
 }
 
@@ -585,23 +600,51 @@ decrypt_wide_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 	assert_contextless(data_size >= BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block1: Block128_U8 = ---
-	block2: Block128_U8 = ---
+	_stream_: Block128_U32
+
+	block1: Block128_U32 = ---
+	block2: Block128_U32 = ---
 
 	num_rounds := 2 * ((uint(data_size) + BLOCK_SIZE_128_U8 - 1) / BLOCK_SIZE_128_U8)
 	for round := num_rounds; round >= 1; round -= 1 {
-		copy_slice(block1[:], data[data_size - BLOCK_SIZE_128_U8:])
+
+		stream := data[data_size - BLOCK_SIZE_128_U8:]
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
 		copy_slice(data[BLOCK_SIZE_128_U8:], data[:data_size - BLOCK_SIZE_128_U8])
-		copy_slice(data[:BLOCK_SIZE_128_U8], block1[:])
 
-		encrypt_block(ctx, block1[:])
-		u128_block(block2[:], u128(round))
+		block1 = encrypt_block_raw(ctx, _stream_)
+		block2 = transmute(Block128_U32)u128(round)
+		block1 = block1 ~ block2
 
-		xor_block(block1[:], block2[:])
-		xor_block(data[data_size - BLOCK_SIZE_128_U8:], block1[:])
+		stream = data[data_size - BLOCK_SIZE_128_U8:]
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			block2[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
 
-		for i := BLOCK_SIZE_128_U8; i + BLOCK_SIZE_128_U8 < data_size; i += BLOCK_SIZE_128_U8 {
-			xor_block(data[:BLOCK_SIZE_128_U8], data[i: i + BLOCK_SIZE_128_U8])
+		block2 = block2 ~ block1
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block2[i])
+		}
+
+		stream = data[BLOCK_SIZE_128_U8:]
+		stream_size := data_size - BLOCK_SIZE_128_U8
+		for stream_size > BLOCK_SIZE_128_U8 {
+			#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+				block1[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+			}
+
+			_stream_ = _stream_ ~ block1
+
+			stream = stream[BLOCK_SIZE_128_U8:]
+			stream_size -= BLOCK_SIZE_128_U8
+		}
+
+		stream = data
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], _stream_[i])
 		}
 	}
 }
@@ -626,12 +669,32 @@ encrypt_ecb :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check 
 		block: Block128_U8 = ---
 
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
-		copy_slice(block[:stream_size], stream[BLOCK_SIZE_128_U8:])
-		copy_slice(block[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(block[:stream_size]),
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			stream_size,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(block[stream_size:]),
+			raw_data(stream[stream_size: BLOCK_SIZE_128_U8]),
+			BLOCK_SIZE_128_U8 - stream_size,
+		)
 
 		encrypt_block(ctx, block[:])
-		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			raw_data(stream[:stream_size]),
+			stream_size,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[:BLOCK_SIZE_128_U8]),
+			&block,
+			BLOCK_SIZE_128_U8,
+		)
 	}
 }
 
@@ -655,12 +718,32 @@ decrypt_ecb :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_check 
 		block: Block128_U8 = ---
 
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
-		copy_slice(block[:stream_size], stream[BLOCK_SIZE_128_U8:])
-		copy_slice(block[stream_size:], stream[stream_size: BLOCK_SIZE_128_U8])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(block[:stream_size]),
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			stream_size,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(block[stream_size:]),
+			raw_data(stream[stream_size: BLOCK_SIZE_128_U8]),
+			BLOCK_SIZE_128_U8 - stream_size,
+		)
 
 		decrypt_block(ctx, block[:])
-		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			raw_data(stream[:stream_size]),
+			stream_size,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[:BLOCK_SIZE_128_U8]),
+			&block,
+			BLOCK_SIZE_128_U8,
+		)
 	}
 }
 
@@ -745,24 +828,57 @@ encrypt_cfb :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block: Block128_U8 = ---
-	copy_slice(block[:], iv)
+	_stream_: Block128_U32
+
+	block: Block128_U32 = ---
+
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		block[i] = endian.unchecked_get_u32le(iv[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	}
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		encrypt_block(ctx, block[:])
-		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block[:])
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block = encrypt_block_raw(ctx, block)
+		block = block ~ _stream_
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
+		}
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		encrypt_block(ctx, block[:])
-		xor_slice(block[:stream_size], stream[:])
-		copy_slice(stream[:], block[:stream_size])
+		_bytes_: Block128_U8
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block = encrypt_block_raw(ctx, block)
+		block = block ~ _stream_
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
+		}
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_bytes_,
+			stream_size,
+		)
 	}
 }
 
@@ -774,27 +890,61 @@ decrypt_cfb :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block: Block128_U8 = ---
-	copy_slice(block[:], iv)
+	_stream_: Block128_U32
+
+	block: Block128_U32 = ---
+
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		block[i] = endian.unchecked_get_u32le(iv[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	}
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		encrypt_block(ctx, block[:])
-		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
 
-		xor_block(stream[:BLOCK_SIZE_128_U8], block[:])
-		xor_block(block[:], stream[:BLOCK_SIZE_128_U8])
-		xor_block(stream[:BLOCK_SIZE_128_U8], block[:])
+		block = encrypt_block_raw(ctx, block)
+		block = block ~ _stream_
+
+		_stream_ = _stream_ ~ block
+		block = block ~ _stream_
+		_stream_ = _stream_ ~ block
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], _stream_[i])
+		}
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		encrypt_block(ctx, block[:])
-		xor_slice(block[:stream_size], stream[:])
-		copy_slice(stream[:], block[:stream_size])
+		_bytes_: Block128_U8
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block = encrypt_block_raw(ctx, block)
+		block = block ~ _stream_
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
+		}
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_bytes_,
+			stream_size,
+		)
 	}
 }
 
@@ -806,69 +956,67 @@ encrypt_ctr :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block1: Block128_U8 = ---
-	block2: Block128_U8 = ---
+	_stream_: Block128_U32
 
-	copy_slice(block2[:], iv)
-	encrypt_block(ctx, block2[:])
+	block1: Block128_U32 = ---
+	block2: Block128_U32 = ---
+
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		block2[i] = endian.unchecked_get_u32le(iv[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	}
+
+	block2 = encrypt_block_raw(ctx, block2)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		inc_block(block2[:])
-		copy_slice(block1[:], block2[:])
-		encrypt_block(ctx, block1[:])
-		xor_block(block1[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block1[:])
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block2 = transmute(Block128_U32)(transmute(u128)block2 + 1)
+		block1 = encrypt_block_raw(ctx, block2)
+		block1 = block1 ~ _stream_
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block1[i])
+		}
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		inc_block(block2[:])
-		copy_slice(block1[:], block2[:])
-		encrypt_block(ctx, block1[:])
-		xor_slice(block1[:stream_size], stream[:])
-		copy_slice(stream[:], block1[:stream_size])
+		_bytes_: Block128_U8
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block2 = transmute(Block128_U32)(transmute(u128)block2 + 1)
+		block1 = encrypt_block_raw(ctx, block2)
+		block1 = block1 ~ _stream_
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block1[i])
+		}
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_bytes_,
+			stream_size,
+		)
 	}
 }
 
 /* Counter encryption: belt-decrypt-ctr */
-decrypt_ctr :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
-	data_size := len(data)
-
-	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
-	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
-	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
-
-	block1: Block128_U8 = ---
-	block2: Block128_U8 = ---
-
-	copy_slice(block2[:], iv)
-	encrypt_block(ctx, block2[:])
-
-	stream := data
-	stream_size := data_size
-	for stream_size >= BLOCK_SIZE_128_U8 {
-		inc_block(block2[:])
-		copy_slice(block1[:], block2[:])
-		encrypt_block(ctx, block1[:])
-		xor_block(block1[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block1[:])
-
-		stream = stream[BLOCK_SIZE_128_U8:]
-		stream_size -= BLOCK_SIZE_128_U8
-	}
-
-	if stream_size > 0 {
-		inc_block(block2[:])
-		copy_slice(block1[:], block2[:])
-		encrypt_block(ctx, block1[:])
-		xor_slice(block1[:stream_size], stream[:])
-		copy_slice(stream[:], block1[:stream_size])
-	}
-}
+decrypt_ctr :: encrypt_ctr
 
 @(require_results, private = "file")
 table_φ1 :: #force_inline proc "contextless" (block: Block128_U32) -> Block128_U32 #no_bounds_check {
@@ -966,74 +1114,145 @@ seal_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
-	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
-	block1: Block128_U8
-	block2: Block128_U8 = ---
-	block3: Block128_U8 = ---
-	block4: Block128_U8 = ---
-	block5 := BLOCK_T
+	_bytes_: Block128_U8
+	_stream_: Block128_U32
+
+	block1: Block128_U32 = ---
+	block2: Block128_U32 = ---
+	block3: Block128_U32 = ---
+	block4: Block128_U32 = ---
+	block5: Block128_U32 = ---
 
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
-	endian.unchecked_put_u64le(block4[:MAC_SIZE_64_U8], modulus1)
-	endian.unchecked_put_u64le(block4[MAC_SIZE_64_U8:], modulus2)
+	endian.unchecked_put_u64le(_bytes_[:MAC_SIZE_64_U8], modulus1)
+	endian.unchecked_put_u64le(_bytes_[MAC_SIZE_64_U8:], modulus2)
 
-	copy_slice(block3[:], iv)
-	encrypt_block(ctx, block3[:])
-	copy_slice(block2[:], block3[:])
-	encrypt_block(ctx, block2[:])
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		block3[i] = endian.unchecked_get_u32le(iv[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	}
+
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		block4[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	}
+
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		block5[i] = endian.unchecked_get_u32le(BLOCK_T[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+	}
+
+	block3 = encrypt_block_raw(ctx, block3)
+	block2 = encrypt_block_raw(ctx, block3)
 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		xor_block(block5[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(block5[:], block2[:])
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block5 = block5 ~ _stream_
+		block5 = gf128mul(block5, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		copy_slice(block1[:stream_size], stream[:])
-		xor_block(block5[:], block1[:])
-		mul_block(block5[:], block2[:])
-		block1 = Block128_U8 {}
+		_bytes_ = Block128_U8{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block5 = block5 ~ _stream_
+		block5 = gf128mul(block5, block2)
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		inc_block(block3[:])
-		copy_slice(block1[:], block3[:])
-		encrypt_block(ctx, block1[:])
-		xor_block(block1[:], stream[:BLOCK_SIZE_128_U8])
-		copy_slice(stream[:BLOCK_SIZE_128_U8], block1[:])
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			block1[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
 
-		xor_block(block5[:], stream[:BLOCK_SIZE_128_U8])
-		mul_block(block5[:], block2[:])
+		block3 = transmute(Block128_U32)(transmute(u128)block3 + 1)
+		_stream_ = encrypt_block_raw(ctx, block3)
+		_stream_ = _stream_ ~ block1
+
+		block5 = block5 ~ _stream_
+		block5 = gf128mul(block5, block2)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], _stream_[i])
+		}
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		inc_block(block3[:])
-		copy_slice(block1[:], block3[:])
-		encrypt_block(ctx, block1[:])
-		xor_slice(block1[:stream_size], stream[:])
-		copy_slice(stream[:], block1[:stream_size])
-		block1 = Block128_U8 {}
+		_bytes_ = Block128_U8{}
 
-		copy_slice(block1[:stream_size], stream[:])
-		xor_block(block5[:], block1[:])
-		mul_block(block5[:], block2[:])
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			block1[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block3 = transmute(Block128_U32)(transmute(u128)block3 + 1)
+		_stream_ = encrypt_block_raw(ctx, block3)
+		_stream_ = _stream_ ~ block1
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			endian.unchecked_put_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], _stream_[i])
+		}
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_bytes_,
+			stream_size,
+		)
+
+		_bytes_ = Block128_U8{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+			_stream_[i] = endian.unchecked_get_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
+		}
+
+		block5 = block5 ~ _stream_
+		block5 = gf128mul(block5, block2)
 	}
 
-	xor_block(block5[:], block4[:])
-	mul_block(block5[:], block2[:])
-	encrypt_block(ctx, block5[:])
-	copy_slice(mac[:], block5[:mac_size])
+	block5 = block5 ~ block4
+	block5 = gf128mul(block5, block2)
+	block5 = encrypt_block_raw(ctx, block5)
+
+	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
+		endian.unchecked_put_u32le(_bytes_[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block5[i])
+	}
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(mac),
+		&_bytes_,
+		mac_size,
+	)
 }
 
 /* Authenticated encryption: belt-open-dwp */
@@ -1044,7 +1263,6 @@ open_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
-	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
 	block1: Block128_U8
 	block2: Block128_U8 = ---
@@ -1129,7 +1347,6 @@ seal_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
-	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
 	block1: Block128_U8
 	block2: Block128_U8 = ---
@@ -1211,7 +1428,6 @@ open_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
-	ensure_contextless(aad_size != 0, "crypto/belt: invalid AAD size")
 
 	block1: Block128_U8
 	block2: Block128_U8 = ---

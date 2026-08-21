@@ -1,3 +1,4 @@
+#+build amd64,arm64
 package benchmark
 
 /* STB 34.101.31-2020                                    */

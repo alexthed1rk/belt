@@ -1,3 +1,4 @@
+#+build amd64,arm64
 package benchmark
 
 import "core:crypto"
