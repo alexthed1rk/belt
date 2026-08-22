@@ -528,7 +528,7 @@ test_derive_mac :: proc (t: ^testing.T) {
 }
 
 @(test)
-test_mul_block :: proc (t: ^testing.T) {
+test_gf128mul :: proc (t: ^testing.T) {
 	block_string1 := "3490405511be32971343724c5ab793e9"
 	block_string2 := "224817838761a9d6e3ec9689110fb0f3"
 	truth_string1 := "0001d107fc67de4004dc2c803dfd95c3"
@@ -543,8 +543,8 @@ test_mul_block :: proc (t: ^testing.T) {
 	block_data3, _ := hex.decode(transmute([]byte)block_string3, context.temp_allocator)
 	block_data4, _ := hex.decode(transmute([]byte)block_string4, context.temp_allocator)
 
-	mul_block(block_data1, block_data2)
-	mul_block(block_data3, block_data4)
+	gf128mul(block_data1, block_data2)
+	gf128mul(block_data3, block_data4)
 
 	check_string1 := string(hex.encode(block_data1[:], context.temp_allocator))
 	check_string2 := string(hex.encode(block_data3[:], context.temp_allocator))
@@ -552,7 +552,7 @@ test_mul_block :: proc (t: ^testing.T) {
 	testing.expectf(
 		t,
 		check_string1 == truth_string1,
-		"crypto/belt: expected: %s for mul_block(%s, %s), but got %s instead",
+		"crypto/belt: expected: %s for gf128mul(%s, %s), but got %s instead",
 		truth_string1,
 		block_string1,
 		block_string2,
@@ -562,7 +562,7 @@ test_mul_block :: proc (t: ^testing.T) {
 	testing.expectf(
 		t,
 		check_string2 == truth_string2,
-		"crypto/belt: expected: %s for mul_block(%s, %s), but got %s instead",
+		"crypto/belt: expected: %s for gf128mul(%s, %s), but got %s instead",
 		truth_string2,
 		block_string3,
 		block_string4,

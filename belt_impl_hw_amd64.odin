@@ -7,10 +7,10 @@ package belt
 /* https://apmi.bsu.by/assets/files/std/belt-spec371.pdf */
 
 import "base:intrinsics"
+import "base:runtime"
 import "core:simd/x86"
 import "core:sys/info"
 
-Simd_Block128 :: x86.__m128i
 is_hardware_accelerated :: proc "contextless" () -> bool {
 	req_features :: info.CPU_Features{
 		.pclmulqdq,
@@ -21,8 +21,8 @@ is_hardware_accelerated :: proc "contextless" () -> bool {
 
 /* Intel Carry-Less Multiplication Instruction */
 /* and its Usage for Computing the GCM Mode    */
-@(require_results, enable_target_feature="sse2,pclmul")
-gf128mul_hw :: proc "contextless" (a, b: x86.__m128i) -> x86.__m128i {
+@(require_results, private = "file", enable_target_feature="sse2,pclmul")
+gf128mul_raw_hw :: proc "contextless" (a, b: x86.__m128i) -> x86.__m128i {
 	block0, block1, block2, block3, block4: x86.__m128i
 	block5, block6, block7, block8, block9: x86.__m128i
 	mask := x86._mm_set_epi32(0, 0, 0, -1)
@@ -56,6 +56,34 @@ gf128mul_hw :: proc "contextless" (a, b: x86.__m128i) -> x86.__m128i {
 	block9 = x86._mm_slli_epi32(block3, 7)
 	block0 = x86._mm_xor_si128(block0, block9)
 	return x86._mm_xor_si128(block0, block3)
+}
+
+@(private = "package", enable_target_feature="sse2,pclmul")
+gf128mul_hw :: proc "contextless" (dst, src: []byte) #no_bounds_check {
+	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
+	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
+
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block1,
+		raw_data(dst),
+		BLOCK_SIZE_128_U8,
+	)
+
+	intrinsics.mem_copy_non_overlapping(
+		&block2,
+		raw_data(src),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block1 = gf128mul_raw_hw(block1, block2)
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(dst),
+		&block1,
+		BLOCK_SIZE_128_U8,
+	)
 }
 
 /* Block cipher: belt-encrypt-block */
@@ -396,6 +424,184 @@ decrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 	}
 }
 
+/* Cipher block chaining encryption: belt-encrypt-cbc */
+@(enable_target_feature="sse2")
+encrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_stream_: x86.__m128i
+
+	block: x86.__m128i = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	stream := data
+	stream_size := data_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block = x86._mm_xor_si128(block, _stream_)
+		block = encrypt_block_raw_hw(ctx, block)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_bytes_: Block128_U8
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block = x86._mm_xor_si128(block, _stream_)
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			&block,
+			stream_size,
+		)
+
+		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(_bytes_[stream_size:]),
+			raw_data(stream[stream_size: BLOCK_SIZE_128_U8]),
+			BLOCK_SIZE_128_U8 - stream_size,
+		)
+
+		encrypt_block_hw(ctx, _bytes_[:])
+		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_bytes_,
+			BLOCK_SIZE_128_U8,
+		)
+	}
+}
+
+/* Cipher block chaining encryption: belt-decrypt-cbc */
+@(enable_target_feature="sse2")
+decrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_stream_: x86.__m128i
+
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block2,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	stream := data
+	stream_size := data_size
+	for stream_size >= BLOCK_SIZE_256_U8 || stream_size == BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block1 = decrypt_block_raw_hw(ctx, _stream_)
+		block1 = x86._mm_xor_si128(block1, block2)
+		block2 = _stream_
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block1,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_bytes_: Block128_U8
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		decrypt_block_hw(ctx, _bytes_[:])
+
+		intrinsics.mem_copy_non_overlapping(
+			&block1,
+			&_bytes_,
+			stream_size - BLOCK_SIZE_128_U8,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream[BLOCK_SIZE_128_U8: stream_size]),
+			stream_size - BLOCK_SIZE_128_U8,
+		)
+
+		block1 = x86._mm_xor_si128(block1, _stream_)
+		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block1 = x86._mm_xor_si128(block1, _stream_)
+		_stream_ = x86._mm_xor_si128(_stream_, block1)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[BLOCK_SIZE_128_U8: stream_size]),
+			&_stream_,
+			stream_size - BLOCK_SIZE_128_U8,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			&_bytes_,
+			&block1,
+			stream_size - BLOCK_SIZE_128_U8,
+		)
+
+		intrinsics.mem_copy_non_overlapping(
+			&block1,
+			&_bytes_,
+			BLOCK_SIZE_128_U8,
+		)
+
+		block1 = decrypt_block_raw_hw(ctx, block1)
+		block1 = x86._mm_xor_si128(block1, block2)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block1,
+			BLOCK_SIZE_128_U8,
+		)
+	}
+}
+
 /* Cipher feedback encryption: belt-encrypt-cfb */
 @(enable_target_feature="sse2")
 encrypt_cfb_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
@@ -720,7 +926,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		)
 
 		block5 = x86._mm_xor_si128(block5, _stream_)
-		block5 = gf128mul_hw(block5, block2)
+		block5 = gf128mul_raw_hw(block5, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -736,7 +942,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		)
 
 		block5 = x86._mm_xor_si128(block5, _stream_)
-		block5 = gf128mul_hw(block5, block2)
+		block5 = gf128mul_raw_hw(block5, block2)
 	}
 
 	stream = data
@@ -753,7 +959,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		_stream_ = x86._mm_xor_si128(_stream_, block1)
 
 		block5 = x86._mm_xor_si128(block5, _stream_)
-		block5 = gf128mul_hw(block5, block2)
+		block5 = gf128mul_raw_hw(block5, block2)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
@@ -793,11 +999,11 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		)
 
 		block5 = x86._mm_xor_si128(block5, _stream_)
-		block5 = gf128mul_hw(block5, block2)
+		block5 = gf128mul_raw_hw(block5, block2)
 	}
 
 	block5 = x86._mm_xor_si128(block5, block4)
-	block5 = gf128mul_hw(block5, block2)
+	block5 = gf128mul_raw_hw(block5, block2)
 	block5 = encrypt_block_raw_hw(ctx, block5)
 
 	intrinsics.mem_copy_non_overlapping(
@@ -805,4 +1011,398 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		&block5,
 		mac_size,
 	)
+}
+
+/* Authenticated encryption: belt-open-dwp */
+@(enable_target_feature="sse2,pclmul")
+open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> bool #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+
+	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
+
+	_stream_: x86.__m128i
+
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
+	block3: x86.__m128i = ---
+	block4: x86.__m128i = ---
+	block5: x86.__m128i = ---
+
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+
+	intrinsics.mem_copy_non_overlapping(
+		&block3,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
+	block5 = transmute(x86.__m128i)BLOCK_T
+
+	block3 = encrypt_block_raw_hw(ctx, block3)
+	block2 = encrypt_block_raw_hw(ctx, block3)
+
+	stream := aad
+	stream_size := aad_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = gf128mul_raw_hw(block5, block2)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = gf128mul_raw_hw(block5, block2)
+	}
+
+	stream = data
+	stream_size = data_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = gf128mul_raw_hw(block5, block2)
+
+		block3 = transmute(x86.__m128i)(transmute(u128)block3 + 1)
+		block1 = encrypt_block_raw_hw(ctx, block3)
+		block1 = x86._mm_xor_si128(block1, _stream_)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block1,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = gf128mul_raw_hw(block5, block2)
+
+		block3 = transmute(x86.__m128i)(transmute(u128)block3 + 1)
+		block1 = encrypt_block_raw_hw(ctx, block3)
+		block1 = x86._mm_xor_si128(block1, _stream_)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block1,
+			stream_size,
+		)
+	}
+
+	block5 = x86._mm_xor_si128(block5, block4)
+	block5 = gf128mul_raw_hw(block5, block2)
+	block5 = encrypt_block_raw_hw(ctx, block5)
+
+	if runtime.memory_compare(raw_data(mac), &block5, mac_size) == 0 {
+		return true
+	} else {
+		intrinsics.mem_zero(raw_data(mac), mac_size)
+		intrinsics.mem_zero(raw_data(data), data_size)
+		return false
+	}
+}
+
+/* Authenticated encryption: belt-seal-che */
+@(enable_target_feature="sse2,pclmul")
+seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+
+	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
+
+	_stream_: x86.__m128i
+
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
+	block3: x86.__m128i = ---
+	block4: x86.__m128i = ---
+	block5: x86.__m128i = ---
+	block6: x86.__m128i = ---
+
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+
+	intrinsics.mem_copy_non_overlapping(
+		&block3,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
+	block5 = transmute(x86.__m128i)BLOCK_C
+	block6 = transmute(x86.__m128i)BLOCK_T
+
+	block3 = encrypt_block_raw_hw(ctx, block3)
+	block2 = block3
+
+	stream := aad
+	stream_size := aad_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+	}
+
+	stream = data
+	stream_size = data_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&block1,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block3 = gf128mul_raw_hw(block3, block5)
+		_stream_ = transmute(x86.__m128i)u128(1)
+		block3 = x86._mm_xor_si128(block3, _stream_)
+
+		_stream_ = encrypt_block_raw_hw(ctx, block3)
+		_stream_ = x86._mm_xor_si128(_stream_, block1)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_stream_,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		block1 = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&block1,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block3 = gf128mul_raw_hw(block3, block5)
+		_stream_ = transmute(x86.__m128i)u128(1)
+		block3 = x86._mm_xor_si128(block3, _stream_)
+
+		_stream_ = encrypt_block_raw_hw(ctx, block3)
+		_stream_ = x86._mm_xor_si128(_stream_, block1)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_stream_,
+			stream_size,
+		)
+
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+	}
+
+	block6 = x86._mm_xor_si128(block6, block4)
+	block6 = gf128mul_raw_hw(block6, block2)
+	block6 = encrypt_block_raw_hw(ctx, block6)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(mac),
+		&block6,
+		mac_size,
+	)
+}
+
+/* Authenticated encryption: belt-open-che */
+@(enable_target_feature="sse2,pclmul")
+open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> bool #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+
+	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
+
+	_stream_: x86.__m128i
+
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
+	block3: x86.__m128i = ---
+	block4: x86.__m128i = ---
+	block5: x86.__m128i = ---
+	block6: x86.__m128i = ---
+
+	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
+	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
+
+	intrinsics.mem_copy_non_overlapping(
+		&block3,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
+	block5 = transmute(x86.__m128i)BLOCK_C
+	block6 = transmute(x86.__m128i)BLOCK_T
+
+	block3 = encrypt_block_raw_hw(ctx, block3)
+	block2 = block3
+
+	stream := aad
+	stream_size := aad_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+	}
+
+	stream = data
+	stream_size = data_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+
+		block3 = gf128mul_raw_hw(block3, block5)
+		block1 = transmute(x86.__m128i)u128(1)
+		block3 = x86._mm_xor_si128(block3, block1)
+
+		block1 = encrypt_block_raw_hw(ctx, block3)
+		block1 = x86._mm_xor_si128(block1, _stream_)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block1,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+
+	if stream_size > 0 {
+		_stream_ = x86.__m128i{}
+
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			stream_size,
+		)
+
+		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = gf128mul_raw_hw(block6, block2)
+
+		block3 = gf128mul_raw_hw(block3, block5)
+		block1 = transmute(x86.__m128i)u128(1)
+		block3 = x86._mm_xor_si128(block3, block1)
+
+		block1 = encrypt_block_raw_hw(ctx, block3)
+		block1 = x86._mm_xor_si128(block1, _stream_)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&block1,
+			stream_size,
+		)
+	}
+
+	block6 = x86._mm_xor_si128(block6, block4)
+	block6 = gf128mul_raw_hw(block6, block2)
+	block6 = encrypt_block_raw_hw(ctx, block6)
+
+	if runtime.memory_compare(raw_data(mac), &block6, mac_size) == 0 {
+		return true
+	} else {
+		intrinsics.mem_zero(raw_data(mac), mac_size)
+		intrinsics.mem_zero(raw_data(data), data_size)
+		return false
+	}
 }

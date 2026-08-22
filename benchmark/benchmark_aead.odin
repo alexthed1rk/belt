@@ -129,6 +129,40 @@ benchmark_crypto_aead :: proc(t: ^testing.T) {
 		}
 	}
 
+	table.row(&tbl)
+
+	{
+		key: belt.Key256_U8 = ---
+		crypto.rand_bytes(key[:])
+
+		ctx: belt.Context
+		belt.init(&ctx, key[:])
+
+		for sz, _ in SIZES {
+			options := &time.Benchmark_Options{
+				rounds = ITERS,
+				bytes = belt.BLOCK_SIZE_128_U8 + sz,
+				setup = setup_sized_buf,
+				bench = do_bench_belt_che_hw,
+				teardown = teardown_sized_buf,
+			}
+			context.user_ptr = &ctx
+
+			err := time.benchmark(options, context.allocator)
+			testing.expect(t, err == nil)
+
+			time_per_iter := options.duration / ITERS
+			table.aligned_row_of_values(
+				&tbl,
+				.Right,
+				"BELT-CHE-HW-256",
+				table.format(&tbl, "%d", sz),
+				table.format(&tbl, "%8M", time_per_iter),
+				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
+			)
+		}
+	}
+
 	log_table(&tbl)
 }
 
@@ -194,6 +228,29 @@ do_bench_belt_che :: proc(
 	mac: belt.Mac64_U8 = ---
 	for _ in 0 ..= options.rounds {
 		belt.seal_che(ctx^, iv, nil, mac[:], buf)
+	}
+	options.count = options.rounds
+	options.processed = options.rounds * (options.bytes - iv_sz)
+
+	return
+}
+
+@(private = "file")
+do_bench_belt_che_hw :: proc(
+	options: ^time.Benchmark_Options,
+	allocator := context.allocator,
+) -> (
+	err: time.Benchmark_Error,
+) {
+	ctx := (^belt.Context)(context.user_ptr)
+	iv_sz := belt.BLOCK_SIZE_128_U8
+
+	iv := options.input[:iv_sz]
+	buf := options.input[iv_sz:]
+
+	mac: belt.Mac64_U8 = ---
+	for _ in 0 ..= options.rounds {
+		belt.seal_che_hw(ctx^, iv, nil, mac[:], buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * (options.bytes - iv_sz)
