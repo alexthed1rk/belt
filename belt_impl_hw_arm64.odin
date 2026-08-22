@@ -244,7 +244,11 @@ encrypt_wide_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bou
 			stream_size -= BLOCK_SIZE_128_U8
 		}
 
-		copy_slice(data[:data_size - BLOCK_SIZE_128_U8], data[BLOCK_SIZE_128_U8:])
+		intrinsics.mem_copy(
+			raw_data(data),
+			raw_data(data[BLOCK_SIZE_128_U8:]),
+			data_size - BLOCK_SIZE_128_U8,
+		)
 
 		stream = data[data_size - BLOCK_SIZE_128_U8:]
 		intrinsics.mem_copy_non_overlapping(
@@ -297,7 +301,11 @@ decrypt_wide_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bou
 			BLOCK_SIZE_128_U8,
 		)
 
-		copy_slice(data[BLOCK_SIZE_128_U8:], data[:data_size - BLOCK_SIZE_128_U8])
+		intrinsics.mem_copy(
+			raw_data(data[BLOCK_SIZE_128_U8:]),
+			raw_data(data),
+			data_size - BLOCK_SIZE_128_U8,
+		)
 
 		block1 = encrypt_block_raw_hw(ctx, _stream_)
 		block2 = transmute(arm.uint32x4_t)u128(round)
@@ -508,7 +516,12 @@ encrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 		)
 
 		encrypt_block_hw(ctx, _bytes_[:])
-		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			raw_data(stream),
+			stream_size,
+		)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),

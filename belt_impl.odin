@@ -547,7 +547,11 @@ encrypt_wide_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 			stream_size -= BLOCK_SIZE_128_U8
 		}
 
-		copy_slice(data[:data_size - BLOCK_SIZE_128_U8], data[BLOCK_SIZE_128_U8:])
+		intrinsics.mem_copy(
+			raw_data(data),
+			raw_data(data[BLOCK_SIZE_128_U8:]),
+			data_size - BLOCK_SIZE_128_U8,
+		)
 
 		stream = data[data_size - BLOCK_SIZE_128_U8:]
 		#unroll for i in 0..<BLOCK_SIZE_128_U32 {
@@ -589,7 +593,11 @@ decrypt_wide_block :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 			_stream_[i] = endian.unchecked_get_u32le(stream[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8])
 		}
 
-		copy_slice(data[BLOCK_SIZE_128_U8:], data[:data_size - BLOCK_SIZE_128_U8])
+		intrinsics.mem_copy(
+			raw_data(data[BLOCK_SIZE_128_U8:]),
+			raw_data(data),
+			data_size - BLOCK_SIZE_128_U8,
+		)
 
 		block1 = encrypt_block_raw(ctx, _stream_)
 		block2 = transmute(Block128_U32)u128(round)
@@ -785,7 +793,12 @@ encrypt_cbc :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_ch
 		)
 
 		encrypt_block(ctx, _bytes_[:])
-		copy_slice(stream[BLOCK_SIZE_128_U8:], stream[:stream_size])
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			raw_data(stream),
+			stream_size,
+		)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
@@ -2100,8 +2113,16 @@ expand_key :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 	)
 
 	if src_size == KEY_SIZE_128_U8 {
-		copy_slice(dst[:KEY_SIZE_128_U8], src)
-		copy_slice(dst[KEY_SIZE_128_U8:], src)
+		intrinsics.mem_copy(
+			raw_data(dst[:KEY_SIZE_128_U8]),
+			raw_data(src),
+			KEY_SIZE_128_U8,
+		)
+		intrinsics.mem_copy(
+			raw_data(dst[KEY_SIZE_128_U8:]),
+			raw_data(src),
+			KEY_SIZE_128_U8,
+		)
 	} else if src_size == KEY_SIZE_192_U8 {
 		a :: 0; b :: 1; c :: 2; d :: 3
 		e :: 4; f :: 5; g :: 6; h :: 7
@@ -2118,7 +2139,11 @@ expand_key :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 			endian.unchecked_put_u32le(dst[BLOCK_SIZE_32_U8 * i: BLOCK_SIZE_32_U8 * i + BLOCK_SIZE_32_U8], block[i])
 		}
 	} else if src_size == KEY_SIZE_256_U8 {
-		copy_slice(dst, src)
+		intrinsics.mem_copy(
+			raw_data(dst),
+			raw_data(src),
+			KEY_SIZE_256_U8,
+		)
 	}
 }
 
@@ -2148,24 +2173,64 @@ derive_key :: proc "contextless" (dv, iv, dst, src: []byte) #no_bounds_check {
 	key: Key256_U8 = ---
 
 	if src_size == KEY_SIZE_128_U8 && dst_size == KEY_SIZE_128_U8 {
-		copy_slice(block2[:BLOCK_SIZE_32_U8], BLOCK_R1[:])
+		intrinsics.mem_copy_non_overlapping(
+			&block2,
+			&BLOCK_R1,
+			BLOCK_SIZE_32_U8,
+		)
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_128_U8 {
-		copy_slice(block2[:BLOCK_SIZE_32_U8], BLOCK_R2[:])
+		intrinsics.mem_copy_non_overlapping(
+			&block2,
+			&BLOCK_R2,
+			BLOCK_SIZE_32_U8,
+		)
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_192_U8 {
-		copy_slice(block2[:BLOCK_SIZE_32_U8], BLOCK_R3[:])
+		intrinsics.mem_copy_non_overlapping(
+			&block2,
+			&BLOCK_R3,
+			BLOCK_SIZE_32_U8,
+		)
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_128_U8 {
-		copy_slice(block2[:BLOCK_SIZE_32_U8], BLOCK_R4[:])
+		intrinsics.mem_copy_non_overlapping(
+			&block2,
+			&BLOCK_R4,
+			BLOCK_SIZE_32_U8,
+		)
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_192_U8 {
-		copy_slice(block2[:BLOCK_SIZE_32_U8], BLOCK_R5[:])
+		intrinsics.mem_copy_non_overlapping(
+			&block2,
+			&BLOCK_R5,
+			BLOCK_SIZE_32_U8,
+		)
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_256_U8 {
-		copy_slice(block2[:BLOCK_SIZE_32_U8], BLOCK_R6[:])
+		intrinsics.mem_copy_non_overlapping(
+			&block2,
+			&BLOCK_R6,
+			BLOCK_SIZE_32_U8,
+		)
 	}
 
 	expand_key(key[:], src)
-	copy_slice(block2[BLOCK_SIZE_128_U8:], iv)
-	copy_slice(block2[BLOCK_SIZE_32_U8: BLOCK_SIZE_128_U8], dv)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(block2[BLOCK_SIZE_128_U8:]),
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(block2[BLOCK_SIZE_32_U8: BLOCK_SIZE_128_U8]),
+		raw_data(dv),
+		BLOCK_SIZE_96_U8,
+	)
+
 	compress(block1[:], key[:], block2[:])
-	copy_slice(dst, key[:dst_size])
+
+	intrinsics.mem_copy(
+		raw_data(dst),
+		&key,
+		dst_size,
+	)
 }
 
 /* Reorder the lanes of a Block128_U32 block */
