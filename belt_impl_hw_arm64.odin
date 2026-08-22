@@ -1145,7 +1145,11 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	block5 = gf128mul_raw_hw(block5, block2)
 	block5 = encrypt_block_raw_hw(ctx, block5)
 
-	if runtime.memory_compare(raw_data(mac), &block5, mac_size) == 0 {
+	if runtime.memory_compare(
+		raw_data(mac),
+		&block5,
+		mac_size,
+	) == 0 {
 		return true
 	} else {
 		intrinsics.mem_zero(raw_data(mac), mac_size)
@@ -1415,11 +1419,293 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	block6 = gf128mul_raw_hw(block6, block2)
 	block6 = encrypt_block_raw_hw(ctx, block6)
 
-	if runtime.memory_compare(raw_data(mac), &block6, mac_size) == 0 {
+	if runtime.memory_compare(
+		raw_data(mac),
+		&block6,
+		mac_size,
+	) == 0 {
 		return true
 	} else {
 		intrinsics.mem_zero(raw_data(mac), mac_size)
 		intrinsics.mem_zero(raw_data(data), data_size)
 		return false
 	}
+}
+
+/* Key wrap encryption: belt-seal-kwp */
+@(enable_target_feature="neon")
+seal_kwp_hw :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(len(cipher) == data_size + BLOCK_SIZE_128_U8, "crypto/belt: invalid CIPHER size")
+	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	intrinsics.mem_copy(
+		raw_data(cipher[:data_size]),
+		raw_data(data),
+		data_size,
+	)
+
+	intrinsics.mem_copy(
+		raw_data(cipher[data_size:]),
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	encrypt_wide_block_hw(ctx, cipher)
+}
+
+/* Key wrap encryption: belt-open-kwp */
+@(enable_target_feature="neon")
+open_kwp_hw :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bool #no_bounds_check {
+	data_size := len(data); cipher_size := len(cipher)
+
+	ensure_contextless(cipher_size == data_size + BLOCK_SIZE_128_U8, "crypto/belt: invalid CIPHER size")
+	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	decrypt_wide_block_hw(ctx, cipher)
+
+	if runtime.memory_compare(
+		raw_data(iv),
+		raw_data(cipher[data_size:]),
+		BLOCK_SIZE_128_U8,
+	) == 0 {
+		intrinsics.mem_copy(
+			raw_data(data),
+			raw_data(cipher[:data_size]),
+			data_size,
+		)
+
+		return true
+	} else {
+		intrinsics.mem_zero(raw_data(iv), BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(raw_data(data), data_size)
+		intrinsics.mem_zero(raw_data(cipher), cipher_size)
+
+		return false
+	}
+}
+
+/* Block level encryption: belt-encrypt-bde */
+@(enable_target_feature="neon,aes")
+encrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_128_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_stream_: arm.uint32x4_t
+
+	block1: arm.uint32x4_t = ---
+	block2: arm.uint32x4_t = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block1,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block2 = transmute(arm.uint32x4_t)BLOCK_C
+	block1 = encrypt_block_raw_hw(ctx, block1)
+
+	stream := data
+	stream_size := data_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block1 = gf128mul_raw_hw(block1, block2)
+		_stream_ = arm.veorq_u32(_stream_, block1)
+		_stream_ = encrypt_block_raw_hw(ctx, _stream_)
+		_stream_ = arm.veorq_u32(_stream_, block1)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_stream_,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+}
+
+/* Block level encryption: belt-decrypt-bde */
+@(enable_target_feature="neon,aes")
+decrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_128_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_stream_: arm.uint32x4_t
+
+	block1: arm.uint32x4_t = ---
+	block2: arm.uint32x4_t = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block1,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block2 = transmute(arm.uint32x4_t)BLOCK_C
+	block1 = encrypt_block_raw_hw(ctx, block1)
+
+	stream := data
+	stream_size := data_size
+	for stream_size >= BLOCK_SIZE_128_U8 {
+		intrinsics.mem_copy_non_overlapping(
+			&_stream_,
+			raw_data(stream),
+			BLOCK_SIZE_128_U8,
+		)
+
+		block1 = gf128mul_raw_hw(block1, block2)
+		_stream_ = arm.veorq_u32(_stream_, block1)
+		_stream_ = decrypt_block_raw_hw(ctx, _stream_)
+		_stream_ = arm.veorq_u32(_stream_, block1)
+
+		intrinsics.mem_copy_non_overlapping(
+			raw_data(stream),
+			&_stream_,
+			BLOCK_SIZE_128_U8,
+		)
+
+		stream = stream[BLOCK_SIZE_128_U8:]
+		stream_size -= BLOCK_SIZE_128_U8
+	}
+}
+
+/* Sector level encryption: belt-encrypt-sde */
+@(enable_target_feature="neon")
+encrypt_sde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_256_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_stream_: arm.uint32x4_t
+
+	block: arm.uint32x4_t = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block = encrypt_block_raw_hw(ctx, block)
+
+	intrinsics.mem_copy_non_overlapping(
+		&_stream_,
+		raw_data(data),
+		BLOCK_SIZE_128_U8,
+	)
+
+	_stream_ = arm.veorq_u32(_stream_, block)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(data),
+		&_stream_,
+		BLOCK_SIZE_128_U8,
+	)
+
+	encrypt_wide_block_hw(ctx, data)
+
+	intrinsics.mem_copy_non_overlapping(
+		&_stream_,
+		raw_data(data),
+		BLOCK_SIZE_128_U8,
+	)
+
+	_stream_ = arm.veorq_u32(_stream_, block)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(data),
+		&_stream_,
+		BLOCK_SIZE_128_U8,
+	)
+}
+
+/* Sector level encryption: belt-decrypt-sde */
+@(enable_target_feature="neon")
+decrypt_sde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds_check {
+	data_size := len(data)
+
+	ensure_contextless(
+		data_size >= BLOCK_SIZE_256_U8 &&
+		data_size & (BLOCK_SIZE_128_U8 - 1) == 0,
+		"crypto/belt: invalid DATA size",
+	)
+
+	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
+	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
+
+	_stream_: arm.uint32x4_t
+
+	block: arm.uint32x4_t = ---
+
+	intrinsics.mem_copy_non_overlapping(
+		&block,
+		raw_data(iv),
+		BLOCK_SIZE_128_U8,
+	)
+
+	block = encrypt_block_raw_hw(ctx, block)
+
+	intrinsics.mem_copy_non_overlapping(
+		&_stream_,
+		raw_data(data),
+		BLOCK_SIZE_128_U8,
+	)
+
+	_stream_ = arm.veorq_u32(_stream_, block)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(data),
+		&_stream_,
+		BLOCK_SIZE_128_U8,
+	)
+
+	decrypt_wide_block_hw(ctx, data)
+
+	intrinsics.mem_copy_non_overlapping(
+		&_stream_,
+		raw_data(data),
+		BLOCK_SIZE_128_U8,
+	)
+
+	_stream_ = arm.veorq_u32(_stream_, block)
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(data),
+		&_stream_,
+		BLOCK_SIZE_128_U8,
+	)
 }

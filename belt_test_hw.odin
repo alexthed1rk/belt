@@ -772,3 +772,209 @@ test_open_che_hw :: proc (t: ^testing.T) {
 
 	free_all(context.temp_allocator)
 }
+
+@(test)
+test_seal_kwp_hw :: proc (t: ^testing.T) {
+	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
+	iv_string  := "5be3d61217b96181fe6786ad716b890b"
+
+	block_string := "b194bac80a08f53b366d008e584a5de48504fa9d1bb6c7ac252e72c202fdce0d"
+	truth_string := "49a38ee108d6c742e52b774f00a6ef98b106cbd13ea4fb0680323051bc04df76e487b055c69bcf541176169f1dc9f6c8"
+
+	key_data,   _ := hex.decode(transmute([]byte)key_string,   context.temp_allocator)
+	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+	check_data, _ := hex.decode(transmute([]byte)truth_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	seal_kwp_hw(ctx, check_data, iv_data, block_data)
+	check_string := string(hex.encode(check_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected TRUTH: %s for seal_kwp_hw(%s, %s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		iv_string,
+		key_string,
+		check_string,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
+test_open_kwp_hw :: proc (t: ^testing.T) {
+	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
+	iv_string  := "b5ef68d8e4a39e567153de13d72254ee"
+
+	block_string := "e12bdc1ae28257ec703fccf095ee8df1c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
+	truth_string := "92632ee0c21ad9e09a39343e5c07daa4889b03f2e6847eb152ec99f7a4d9f154"
+	truth_ok := true
+
+	key_data,   _ := hex.decode(transmute([]byte)key_string,   context.temp_allocator)
+	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+	check_data, _ := hex.decode(transmute([]byte)truth_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	check_ok := open_kwp_hw(ctx, block_data, iv_data, check_data)
+	check_string := string(hex.encode(check_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected TRUTH: %s for open_kwp_hw(%s, %s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		iv_string,
+		key_string,
+		check_string,
+	)
+
+	testing.expectf(
+		t,
+		check_ok == truth_ok,
+		"crypto/belt: expected OK: %t for open_kwp_hw(%s, %s, %s), but got %t instead",
+		truth_ok,
+		block_string,
+		iv_string,
+		key_string,
+		check_ok,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
+test_encrypt_bde_hw :: proc (t: ^testing.T) {
+	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
+	iv_string  := "be32971343fc9a48a02a885f194b09a1"
+
+	block_string := "b194bac80a08f53b366d008e584a5de48504fa9d1bb6c7ac252e72c202fdce0d5be3d61217b96181fe6786ad716b890b"
+	truth_string := "e9cab32d879cc50c10378eb07c10f26307257e2dbe2b854cbc9f38282d59d6a77f952001c5d1244f53210a27c216d4bb"
+
+	key_data,   _ := hex.decode(transmute([]byte)key_string,   context.temp_allocator)
+	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	encrypt_bde_hw(ctx, iv_data, block_data)
+	check_string := string(hex.encode(block_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected: %s for encrypt_bde_hw(%s, %s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		iv_string,
+		key_string,
+		check_string,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
+test_decrypt_bde_hw :: proc (t: ^testing.T) {
+	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
+	iv_string  := "7ecda4d01544af8ca58450bf66d2e88a"
+
+	block_string := "e12bdc1ae28257ec703fccf095ee8df1c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
+	truth_string := "7041bc226352c706d00ea8ef23cfe46afae118577d037facdc36e4ecc1f6574609f236943fb809e1bee4a1c686c13acc"
+
+	key_data,   _ := hex.decode(transmute([]byte)key_string,   context.temp_allocator)
+	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	decrypt_bde_hw(ctx, iv_data, block_data)
+	check_string := string(hex.encode(block_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected: %s for decrypt_bde_hw(%s, %s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		iv_string,
+		key_string,
+		check_string,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
+test_encrypt_sde_hw :: proc (t: ^testing.T) {
+	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
+	iv_string  := "be32971343fc9a48a02a885f194b09a1"
+
+	block_string := "b194bac80a08f53b366d008e584a5de48504fa9d1bb6c7ac252e72c202fdce0d5be3d61217b96181fe6786ad716b890b"
+	truth_string := "1fcbb01852003d60b66024c508608baa2c21af1e884cf31154d3077d4643cf2249eb2f5a68e4ba019d90211a81d690d9"
+
+	key_data,   _ := hex.decode(transmute([]byte)key_string,   context.temp_allocator)
+	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	encrypt_sde_hw(ctx, iv_data, block_data)
+	check_string := string(hex.encode(block_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected: %s for encrypt_sde_hw(%s, %s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		iv_string,
+		key_string,
+		check_string,
+	)
+
+	free_all(context.temp_allocator)
+}
+
+@(test)
+test_decrypt_sde_hw :: proc (t: ^testing.T) {
+	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
+	iv_string  := "7ecda4d01544af8ca58450bf66d2e88a"
+
+	block_string := "e12bdc1ae28257ec703fccf095ee8df1c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
+	truth_string := "e9fdf3f788657332e6c46fcf5251b8a6d43543a93e3233837db1571183a6ef4d7feb5cdf999e1a3f51a5a3381beb7fa5"
+
+	key_data,   _ := hex.decode(transmute([]byte)key_string,   context.temp_allocator)
+	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
+	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
+
+	ctx: Context = ---
+	init(&ctx, key_data)
+
+	decrypt_sde_hw(ctx, iv_data, block_data)
+	check_string := string(hex.encode(block_data, context.temp_allocator))
+
+	testing.expectf(
+		t,
+		check_string == truth_string,
+		"crypto/belt: expected: %s for decrypt_sde_hw(%s, %s, %s), but got %s instead",
+		truth_string,
+		block_string,
+		iv_string,
+		key_string,
+		check_string,
+	)
+
+	free_all(context.temp_allocator)
+}
