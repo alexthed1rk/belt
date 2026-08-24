@@ -492,7 +492,8 @@ encrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 
 	if stream_size > 0 {
 		_bytes_: Block128_U8
-		_stream_ = arm.uint32x4_t{}
+
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -576,7 +577,8 @@ decrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 
 	if stream_size > 0 {
 		_bytes_: Block128_U8
-		_stream_ = arm.uint32x4_t{}
+
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -674,7 +676,7 @@ encrypt_cfb_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -739,7 +741,7 @@ decrypt_cfb_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -804,7 +806,7 @@ encrypt_ctr_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -963,7 +965,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1002,7 +1004,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	}
 
 	if stream_size > 0 {
-		block1 = arm.uint32x4_t{}
+		zero_explicit(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&block1,
@@ -1020,7 +1022,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 			stream_size,
 		)
 
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1093,7 +1095,7 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1132,7 +1134,7 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1223,7 +1225,7 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1265,7 +1267,7 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	}
 
 	if stream_size > 0 {
-		block1 = arm.uint32x4_t{}
+		zero_explicit(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&block1,
@@ -1286,7 +1288,7 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 			stream_size,
 		)
 
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1361,7 +1363,7 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1403,7 +1405,7 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	}
 
 	if stream_size > 0 {
-		_stream_ = arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,
@@ -1613,7 +1615,7 @@ derive_hash_hw :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	}
 
 	if stream_size > 0 {
-		_stream_ = [2]arm.uint32x4_t{}
+		zero_explicit(&_stream_, BLOCK_SIZE_256_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_stream_,

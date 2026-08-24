@@ -368,6 +368,30 @@ Context :: struct {
 	is_initialized: bool,
 }
 
+/*
+Set each byte of a memory range to zero.
+
+This procedure copies the value `0` into the `len` bytes of a memory range,
+starting at address `data`.
+
+This procedure returns the pointer to `data`.
+
+Unlike the `zero()` procedure, which can be optimized away or reordered by the
+compiler under certain circumstances, `zero_explicit()` procedure can not be
+optimized away or reordered with other memory access operations, and the
+compiler assumes volatile semantics of the memory.
+*/
+@(private = "package")
+zero_explicit :: proc "contextless" (data: rawptr, len: int) -> rawptr {
+	// This routine tries to avoid the compiler optimizing away the call,
+	// so that it is always executed.  It is intended to provide
+	// equivalent semantics to those provided by the C11 Annex K 3.7.4.1
+	// memset_s call.
+	intrinsics.mem_zero_volatile(data, len) // Use the volatile mem_zero
+	intrinsics.atomic_thread_fence(.Seq_Cst) // Prevent reordering
+	return data
+}
+
 init :: proc "contextless" (ctx: ^Context, key: []byte) #no_bounds_check {
 	ensure_contextless(len(key) == KEY_SIZE_256_U8, "crypto/belt: invalid KEY size")
 
@@ -1234,7 +1258,7 @@ seal_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1273,7 +1297,7 @@ seal_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1299,7 +1323,7 @@ seal_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 			stream_size,
 		)
 
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1377,7 +1401,7 @@ open_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1416,7 +1440,7 @@ open_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1516,7 +1540,7 @@ seal_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1558,7 +1582,7 @@ seal_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1587,7 +1611,7 @@ seal_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bo
 			stream_size,
 		)
 
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1667,7 +1691,7 @@ open_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
@@ -1709,7 +1733,7 @@ open_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	}
 
 	if stream_size > 0 {
-		_bytes_ = Block128_U8{}
+		zero_explicit(&_bytes_, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&_bytes_,
