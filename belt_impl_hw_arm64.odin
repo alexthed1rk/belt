@@ -1167,8 +1167,9 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	) == 0 {
 		return true
 	} else {
-		intrinsics.mem_zero(raw_data(mac), mac_size)
-		intrinsics.mem_zero(raw_data(data), data_size)
+		zero_explicit(raw_data(mac), mac_size)
+		zero_explicit(raw_data(data), data_size)
+
 		return false
 	}
 }
@@ -1441,8 +1442,9 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	) == 0 {
 		return true
 	} else {
-		intrinsics.mem_zero(raw_data(mac), mac_size)
-		intrinsics.mem_zero(raw_data(data), data_size)
+		zero_explicit(raw_data(mac), mac_size)
+		zero_explicit(raw_data(data), data_size)
+
 		return false
 	}
 }
@@ -1497,9 +1499,9 @@ open_kwp_hw :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bo
 
 		return true
 	} else {
-		intrinsics.mem_zero(raw_data(iv), BLOCK_SIZE_128_U8)
-		intrinsics.mem_zero(raw_data(data), data_size)
-		intrinsics.mem_zero(raw_data(cipher), cipher_size)
+		zero_explicit(raw_data(iv), BLOCK_SIZE_128_U8)
+		zero_explicit(raw_data(data), data_size)
+		zero_explicit(raw_data(cipher), cipher_size)
 
 		return false
 	}

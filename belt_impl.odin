@@ -1485,8 +1485,9 @@ open_dwp :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	) == 0 {
 		return true
 	} else {
-		intrinsics.mem_zero(raw_data(mac), mac_size)
-		intrinsics.mem_zero(raw_data(data), data_size)
+		zero_explicit(raw_data(mac), mac_size)
+		zero_explicit(raw_data(data), data_size)
+
 		return false
 	}
 }
@@ -1781,8 +1782,8 @@ open_che :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> boo
 	) == 0 {
 		return true
 	} else {
-		intrinsics.mem_zero(raw_data(mac), mac_size)
-		intrinsics.mem_zero(raw_data(data), data_size)
+		zero_explicit(raw_data(mac), mac_size)
+		zero_explicit(raw_data(data), data_size)
 
 		return false
 	}
@@ -1836,9 +1837,9 @@ open_kwp :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bool 
 
 		return true
 	} else {
-		intrinsics.mem_zero(raw_data(iv), BLOCK_SIZE_128_U8)
-		intrinsics.mem_zero(raw_data(data), data_size)
-		intrinsics.mem_zero(raw_data(cipher), cipher_size)
+		zero_explicit(raw_data(iv), BLOCK_SIZE_128_U8)
+		zero_explicit(raw_data(data), data_size)
+		zero_explicit(raw_data(cipher), cipher_size)
 
 		return false
 	}
@@ -2563,7 +2564,7 @@ str2bin :: proc "contextless" (m: int, dst: []byte, src: []u16) #no_bounds_check
 		"crypto/belt: invalid M value",
 	)
 
-	intrinsics.mem_zero(raw_data(dst), dst_size)
+	zero_explicit(raw_data(dst), dst_size)
 
 	stream := src
 	stream_idx := src_size - 1
