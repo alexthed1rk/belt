@@ -2075,8 +2075,8 @@ encrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 			BLOCK_SIZE_32_U8,
 		)
 
-		roundf_hw(ctx, block2[:])
-		bin2str_add(m, data1, block2[:])
+		roundf_hw(ctx, block2)
+		bin2str_add(m, data1, block2)
 
 		str2bin(m, block1[:block1_size], data1)
 
@@ -2092,8 +2092,8 @@ encrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 			BLOCK_SIZE_32_U8,
 		)
 
-		roundf_hw(ctx, block1[:])
-		bin2str_add(m, data2, block1[:])
+		roundf_hw(ctx, block1)
+		bin2str_add(m, data2, block1)
 	}
 }
 
@@ -2174,8 +2174,8 @@ decrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 			BLOCK_SIZE_32_U8,
 		)
 
-		roundf_hw(ctx, block1[:])
-		bin2str_sub(m, data2, block1[:])
+		roundf_hw(ctx, block1)
+		bin2str_sub(m, data2, block1)
 
 		str2bin(m, block2[:block2_size], data2)
 
@@ -2191,7 +2191,7 @@ decrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 			BLOCK_SIZE_32_U8,
 		)
 
-		roundf_hw(ctx, block2[:])
-		bin2str_sub(m, data1, block2[:])
+		roundf_hw(ctx, block2)
+		bin2str_sub(m, data1, block2)
 	}
 }
