@@ -933,6 +933,11 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	block4: arm.uint32x4_t = ---
 	block5: arm.uint32x4_t = ---
 
+	BLOCK_T := Block128_U8 {
+		0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
+		0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
+	}
+
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 
@@ -1063,6 +1068,11 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	block4: arm.uint32x4_t = ---
 	block5: arm.uint32x4_t = ---
 
+	BLOCK_T := Block128_U8 {
+		0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
+		0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
+	}
+
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 
@@ -1192,6 +1202,16 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	block4: arm.uint32x4_t = ---
 	block5: arm.uint32x4_t = ---
 	block6: arm.uint32x4_t = ---
+
+	BLOCK_C := Block128_U8 {
+		0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+
+	BLOCK_T := Block128_U8 {
+		0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
+		0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
+	}
 
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
@@ -1330,6 +1350,16 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	block4: arm.uint32x4_t = ---
 	block5: arm.uint32x4_t = ---
 	block6: arm.uint32x4_t = ---
+
+	BLOCK_C := Block128_U8 {
+		0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+
+	BLOCK_T := Block128_U8 {
+		0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
+		0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
+	}
 
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
@@ -1596,6 +1626,16 @@ derive_hash_hw :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	block2: [2]arm.uint32x4_t
 	dummy: arm.uint32x4_t
 
+	BLOCK_H1 := Block128_U8 {
+		0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
+		0x36, 0x6d, 0x00, 0x8e, 0x58, 0x4a, 0x5d, 0xe4,
+	}
+
+	BLOCK_H2 := Block128_U8 {
+		0x85, 0x04, 0xfa, 0x9d, 0x1b, 0xb6, 0xc7, 0xac,
+		0x25, 0x2e, 0x72, 0xc2, 0x02, 0xfd, 0xce, 0x0d,
+	}
+
 	block1[a] = transmute(arm.uint32x4_t)BLOCK_H1
 	block1[b] = transmute(arm.uint32x4_t)BLOCK_H2
 	block2[a] = transmute(arm.uint32x4_t)(BITS_PER_BYTE * u128(data_size))
@@ -1657,6 +1697,11 @@ encrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	block1: arm.uint32x4_t = ---
 	block2: arm.uint32x4_t = ---
 
+	BLOCK_C := Block128_U8 {
+		0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+
 	intrinsics.mem_copy_non_overlapping(
 		&block1,
 		raw_data(iv),
@@ -1709,6 +1754,11 @@ decrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 
 	block1: arm.uint32x4_t = ---
 	block2: arm.uint32x4_t = ---
+
+	BLOCK_C := Block128_U8 {
+		0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
 
 	intrinsics.mem_copy_non_overlapping(
 		&block1,
@@ -1884,43 +1934,26 @@ derive_key_hw :: proc "contextless" (depth, iv, dst, src: []byte) #no_bounds_che
 	key: Key256_U8 = ---
 	stream: Block256_U8 = ---
 
+	BLOCK_R: Block32_U8
 	if src_size == KEY_SIZE_128_U8 && dst_size == KEY_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&stream,
-			&BLOCK_R1,
-			BLOCK_SIZE_32_U8,
-		)
+		BLOCK_R = Block32_U8 {0xb1, 0x94, 0xba, 0xc8}
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&stream,
-			&BLOCK_R2,
-			BLOCK_SIZE_32_U8,
-		)
+		BLOCK_R = Block32_U8 {0x5b, 0xe3, 0xd6, 0x12}
 	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_192_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&stream,
-			&BLOCK_R3,
-			BLOCK_SIZE_32_U8,
-		)
+		BLOCK_R = Block32_U8 {0x5c, 0xb0, 0xc0, 0xff}
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&stream,
-			&BLOCK_R4,
-			BLOCK_SIZE_32_U8,
-		)
+		BLOCK_R = Block32_U8 {0xe1, 0x2b, 0xdc, 0x1a}
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_192_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&stream,
-			&BLOCK_R5,
-			BLOCK_SIZE_32_U8,
-		)
+		BLOCK_R = Block32_U8 {0xc1, 0xab, 0x76, 0x38}
 	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_256_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&stream,
-			&BLOCK_R6,
-			BLOCK_SIZE_32_U8,
-		)
+		BLOCK_R = Block32_U8 {0xf3, 0x3c, 0x65, 0x7b}
 	}
+
+	intrinsics.mem_copy_non_overlapping(
+		raw_data(stream[:BLOCK_SIZE_32_U8]),
+		&BLOCK_R,
+		BLOCK_SIZE_32_U8,
+	)
 
 	intrinsics.mem_copy_non_overlapping(
 		raw_data(stream[BLOCK_SIZE_32_U8: BLOCK_SIZE_128_U8]),
@@ -2042,13 +2075,13 @@ encrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 		BLOCK_SIZE_16_U8,
 	)
 
-	table1 := [?][]byte {
-		BLOCK_C1[:],
-		BLOCK_C2[:],
-		BLOCK_C3[:],
-		BLOCK_C4[:],
-		BLOCK_C5[:],
-		BLOCK_C6[:],
+	table1 := [?]Block32_U8 {
+		Block32_U8 {0xb1, 0x94, 0xba, 0xc8},
+		Block32_U8 {0x0a, 0x08, 0xf5, 0x3b},
+		Block32_U8 {0x36, 0x6d, 0x00, 0x8e},
+		Block32_U8 {0x58, 0x4a, 0x5d, 0xe4},
+		Block32_U8 {0x85, 0x04, 0xfa, 0x9d},
+		Block32_U8 {0x1b, 0xb6, 0xc7, 0xac},
 	}
 
 	table2 := [?][]byte {
@@ -2086,7 +2119,7 @@ encrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(block2[block2_size: block2_size + BLOCK_SIZE_32_U8]),
-			raw_data(table1[2 * round]),
+			&table1[2 * round],
 			BLOCK_SIZE_32_U8,
 		)
 
@@ -2103,7 +2136,7 @@ encrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(block1[block1_size: block2_size + BLOCK_SIZE_32_U8]),
-			raw_data(table1[1 + 2 * round]),
+			&table1[1 + 2 * round],
 			BLOCK_SIZE_32_U8,
 		)
 
@@ -2141,13 +2174,13 @@ decrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 		BLOCK_SIZE_16_U8,
 	)
 
-	table1 := [?][]byte {
-		BLOCK_C1[:],
-		BLOCK_C2[:],
-		BLOCK_C3[:],
-		BLOCK_C4[:],
-		BLOCK_C5[:],
-		BLOCK_C6[:],
+	table1 := [?]Block32_U8 {
+		Block32_U8 {0xb1, 0x94, 0xba, 0xc8},
+		Block32_U8 {0x0a, 0x08, 0xf5, 0x3b},
+		Block32_U8 {0x36, 0x6d, 0x00, 0x8e},
+		Block32_U8 {0x58, 0x4a, 0x5d, 0xe4},
+		Block32_U8 {0x85, 0x04, 0xfa, 0x9d},
+		Block32_U8 {0x1b, 0xb6, 0xc7, 0xac},
 	}
 
 	table2 := [?][]byte {
@@ -2185,7 +2218,7 @@ decrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(block1[block1_size: block2_size + BLOCK_SIZE_32_U8]),
-			raw_data(table1[5 - 2 * round]),
+			&table1[5 - 2 * round],
 			BLOCK_SIZE_32_U8,
 		)
 
@@ -2202,7 +2235,7 @@ decrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(block2[block2_size: block2_size + BLOCK_SIZE_32_U8]),
-			raw_data(table1[4 - 2 * round]),
+			&table1[4 - 2 * round],
 			BLOCK_SIZE_32_U8,
 		)
 
