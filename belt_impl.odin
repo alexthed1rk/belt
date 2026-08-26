@@ -2325,28 +2325,42 @@ shr_block :: #force_inline proc "contextless" (a: Block128_U32, shift: u32) -> B
 	return block
 }
 
+/* Software alternative to vmull_p64(a, b) */
+@(private = "file")
+bmul64 :: proc "contextless" (x, y: u64) -> u128 #no_bounds_check {
+	x0 := u128(x & 0x1111_1111_1111_1111)
+	x1 := u128(x & 0x2222_2222_2222_2222)
+	x2 := u128(x & 0x4444_4444_4444_4444)
+	x3 := u128(x & 0x8888_8888_8888_8888)
+	y0 := u128(y & 0x1111_1111_1111_1111)
+	y1 := u128(y & 0x2222_2222_2222_2222)
+	y2 := u128(y & 0x4444_4444_4444_4444)
+	y3 := u128(y & 0x8888_8888_8888_8888)
+	z0 := (x0 * y0) ~ (x1 * y3) ~ (x2 * y2) ~ (x3 * y1)
+	z1 := (x0 * y1) ~ (x1 * y0) ~ (x2 * y3) ~ (x3 * y2)
+	z2 := (x0 * y2) ~ (x1 * y1) ~ (x2 * y0) ~ (x3 * y3)
+	z3 := (x0 * y3) ~ (x1 * y2) ~ (x2 * y1) ~ (x3 * y0)
+	z0 &= 0x1111_1111_1111_1111_1111_1111_1111_1111
+	z1 &= 0x2222_2222_2222_2222_2222_2222_2222_2222
+	z2 &= 0x4444_4444_4444_4444_4444_4444_4444_4444
+	z3 &= 0x8888_8888_8888_8888_8888_8888_8888_8888
+	return z0 | z1 | z2 | z3
+}
+
 /* Software alternative to _mm_clmulepi64_si128(a, b, 0x00) */
 @(private = "file")
 soft_vmull_low_p64 :: #force_inline proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
-	block: u128
 	a := (transmute(Block128_U64)a)[0]
 	b := (transmute(Block128_U64)b)[0]
-	#unroll for i in 0..< BITS_PER_BYTE * size_of(u64) {
-		block ~= (u128(a) << uint(i)) * u128((b >> uint(i)) & 1)
-	}
-	return transmute(Block128_U32)block
+	return transmute(Block128_U32)bmul64(a, b)
 }
 
 /* Software alternative to _mm_clmulepi64_si128(a, b, 0x11) */
 @(private = "file")
 soft_vmull_high_p64 :: #force_inline proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_bounds_check {
-	block: u128
 	a := (transmute(Block128_U64)a)[1]
 	b := (transmute(Block128_U64)b)[1]
-	#unroll for i in 0..< BITS_PER_BYTE * size_of(u64) {
-		block ~= (u128(a) << uint(i)) * u128((b >> uint(i)) & 1)
-	}
-	return transmute(Block128_U32)block
+	return transmute(Block128_U32)bmul64(a, b)
 }
 
 /* Intel Carry-Less Multiplication Instruction */

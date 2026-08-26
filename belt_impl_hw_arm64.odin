@@ -22,14 +22,14 @@ is_hardware_accelerated :: proc "contextless" () -> bool {
 }
 
 @(require_results, private = "file", enable_target_feature = "neon,aes")
-arm_vmull_low_p64 :: #force_inline proc "c" (a, b: arm.uint32x4_t) -> arm.uint32x4_t {
+arm_vmull_low_p64 :: #force_inline proc "c" (a, b: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	a := arm.vgetq_lane_p64(transmute(arm.poly64x2_t)a, 0)
 	b := arm.vgetq_lane_p64(transmute(arm.poly64x2_t)b, 0)
 	return transmute(arm.uint32x4_t)arm.vmull_p64(a, b)
 }
 
 @(require_results, private = "file", enable_target_feature = "neon,aes")
-arm_vmull_high_p64 :: #force_inline proc "c" (a, b: arm.uint32x4_t) -> arm.uint32x4_t {
+arm_vmull_high_p64 :: #force_inline proc "c" (a, b: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	a := arm.vgetq_lane_p64(transmute(arm.poly64x2_t)a, 1)
 	b := arm.vgetq_lane_p64(transmute(arm.poly64x2_t)b, 1)
 	return transmute(arm.uint32x4_t)arm.vmull_p64(a, b)
@@ -38,7 +38,7 @@ arm_vmull_high_p64 :: #force_inline proc "c" (a, b: arm.uint32x4_t) -> arm.uint3
 /* Intel Carry-Less Multiplication Instruction */
 /* and its Usage for Computing the GCM Mode    */
 @(require_results, private = "file", enable_target_feature="neon,aes")
-gf128mul_raw_hw :: proc "contextless" (a, b: arm.uint32x4_t) -> arm.uint32x4_t {
+gf128mul_raw_hw :: proc "contextless" (a, b: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	block0, block1, block2, block3, block4: arm.uint32x4_t
 	block5, block6, block7, block8, block9: arm.uint32x4_t
 	mask := arm.uint32x4_t {max(u32), 0, 0, 0}
@@ -830,7 +830,7 @@ encrypt_ctr_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 decrypt_ctr_hw :: encrypt_ctr_hw
 
 @(require_results, private = "file", enable_target_feature="neon")
-table_φ1_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.uint32x4_t {
+table_φ1_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	block1, block2: arm.uint32x4_t
 	block1 = simd.shuffle(data, data, 1, 2, 3, 0)
 	block2 = simd.shuffle(block1, arm.uint32x4_t{}, 4, 5, 6, 0)
@@ -838,7 +838,7 @@ table_φ1_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.u
 }
 
 @(require_results, private = "file", enable_target_feature="neon")
-table_φ2_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.uint32x4_t {
+table_φ2_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	block1, block2: arm.uint32x4_t
 	block1 = simd.shuffle(data, data, 3, 0, 1, 2)
 	block2 = arm.uint32x4_t {max(u32), 0, 0, 0}

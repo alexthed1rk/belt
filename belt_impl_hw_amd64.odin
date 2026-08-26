@@ -22,7 +22,7 @@ is_hardware_accelerated :: proc "contextless" () -> bool {
 /* Intel Carry-Less Multiplication Instruction */
 /* and its Usage for Computing the GCM Mode    */
 @(require_results, private = "file", enable_target_feature="sse2,pclmul")
-gf128mul_raw_hw :: proc "contextless" (a, b: x86.__m128i) -> x86.__m128i {
+gf128mul_raw_hw :: proc "contextless" (a, b: x86.__m128i) -> x86.__m128i #no_bounds_check {
 	block0, block1, block2, block3, block4: x86.__m128i
 	block5, block6, block7, block8, block9: x86.__m128i
 	mask := x86._mm_set_epi32(0, 0, 0, -1)
@@ -813,7 +813,7 @@ encrypt_ctr_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 decrypt_ctr_hw :: encrypt_ctr_hw
 
 @(require_results, private = "file", enable_target_feature="sse2")
-table_φ1_hw :: #force_inline proc "contextless" (data: x86.__m128i) -> x86.__m128i {
+table_φ1_hw :: #force_inline proc "contextless" (data: x86.__m128i) -> x86.__m128i #no_bounds_check {
 	block1, block2: x86.__m128i
 	block1 = x86._mm_shuffle_epi32(data, 0x39)
 	block2 = x86._mm_slli_si128(block1, 0x0c)
@@ -821,7 +821,7 @@ table_φ1_hw :: #force_inline proc "contextless" (data: x86.__m128i) -> x86.__m1
 }
 
 @(require_results, private = "file", enable_target_feature="sse2")
-table_φ2_hw :: #force_inline proc "contextless" (data: x86.__m128i) -> x86.__m128i {
+table_φ2_hw :: #force_inline proc "contextless" (data: x86.__m128i) -> x86.__m128i #no_bounds_check {
 	block1, block2: x86.__m128i
 	block1 = x86._mm_shuffle_epi32(data, 0x93)
 	block2 = x86._mm_set_epi32(0, 0, 0, -1)
