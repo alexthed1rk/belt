@@ -851,7 +851,7 @@ table_φ2_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.u
 derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds_check {
 	data_size := len(data)
 
-	ensure_contextless(len(mac) == MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(len(mac) == BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
@@ -911,7 +911,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 	intrinsics.mem_copy_non_overlapping(
 		raw_data(mac),
 		&_bytes_,
-		MAC_SIZE_64_U8,
+		BLOCK_SIZE_64_U8,
 	)
 }
 
@@ -920,7 +920,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bounds_check {
 	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
 
-	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -1055,7 +1055,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> bool #no_bounds_check {
 	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
 
-	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -1189,7 +1189,7 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bounds_check {
 	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
 
-	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -1337,7 +1337,7 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> bool #no_bounds_check {
 	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
 
-	ensure_contextless(mac_size != 0 && mac_size <= MAC_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -1914,16 +1914,16 @@ derive_key_hw :: proc "contextless" (depth, iv, dst, src: []byte) #no_bounds_che
 	dst_size := len(dst); src_size := len(src)
 
 	ensure_contextless(
-		src_size == KEY_SIZE_128_U8 ||
-		src_size == KEY_SIZE_192_U8 ||
-		src_size == KEY_SIZE_256_U8,
+		src_size == BLOCK_SIZE_128_U8 ||
+		src_size == BLOCK_SIZE_192_U8 ||
+		src_size == BLOCK_SIZE_256_U8,
 		"crypto/belt: invalid SRC size",
 	)
 
 	ensure_contextless(
-		dst_size == KEY_SIZE_128_U8 ||
-		dst_size == KEY_SIZE_192_U8 ||
-		dst_size == KEY_SIZE_256_U8,
+		dst_size == BLOCK_SIZE_128_U8 ||
+		dst_size == BLOCK_SIZE_192_U8 ||
+		dst_size == BLOCK_SIZE_256_U8,
 		"crypto/belt: invalid DST size",
 	)
 
@@ -1935,17 +1935,17 @@ derive_key_hw :: proc "contextless" (depth, iv, dst, src: []byte) #no_bounds_che
 	stream: Block256_U8 = ---
 
 	BLOCK_R: Block32_U8
-	if src_size == KEY_SIZE_128_U8 && dst_size == KEY_SIZE_128_U8 {
+	if src_size == BLOCK_SIZE_128_U8 && dst_size == BLOCK_SIZE_128_U8 {
 		BLOCK_R = Block32_U8 {0xb1, 0x94, 0xba, 0xc8}
-	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_128_U8 {
+	} else if src_size == BLOCK_SIZE_192_U8 && dst_size == BLOCK_SIZE_128_U8 {
 		BLOCK_R = Block32_U8 {0x5b, 0xe3, 0xd6, 0x12}
-	} else if src_size == KEY_SIZE_192_U8 && dst_size == KEY_SIZE_192_U8 {
+	} else if src_size == BLOCK_SIZE_192_U8 && dst_size == BLOCK_SIZE_192_U8 {
 		BLOCK_R = Block32_U8 {0x5c, 0xb0, 0xc0, 0xff}
-	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_128_U8 {
+	} else if src_size == BLOCK_SIZE_256_U8 && dst_size == BLOCK_SIZE_128_U8 {
 		BLOCK_R = Block32_U8 {0xe1, 0x2b, 0xdc, 0x1a}
-	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_192_U8 {
+	} else if src_size == BLOCK_SIZE_256_U8 && dst_size == BLOCK_SIZE_192_U8 {
 		BLOCK_R = Block32_U8 {0xc1, 0xab, 0x76, 0x38}
-	} else if src_size == KEY_SIZE_256_U8 && dst_size == KEY_SIZE_256_U8 {
+	} else if src_size == BLOCK_SIZE_256_U8 && dst_size == BLOCK_SIZE_256_U8 {
 		BLOCK_R = Block32_U8 {0xf3, 0x3c, 0x65, 0x7b}
 	}
 
