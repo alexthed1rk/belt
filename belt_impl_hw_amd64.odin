@@ -66,24 +66,10 @@ gf128mul_hw :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 
-	intrinsics.mem_copy_non_overlapping(
-		&block1,
-		raw_data(dst),
-		BLOCK_SIZE_128_U8,
-	)
-
-	intrinsics.mem_copy_non_overlapping(
-		&block2,
-		raw_data(src),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(dst)))
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(src)))
 	block1 = gf128mul_raw_hw(block1, block2)
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(dst),
-		&block1,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(dst)), block1)
 }
 
 /* Block cipher: belt-encrypt-block */
@@ -92,49 +78,40 @@ encrypt_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_c
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	stream: x86.__m128i
-	intrinsics.mem_copy_non_overlapping(
-		&stream,
-		raw_data(data),
-		BLOCK_SIZE_128_U8,
-	)
-
+	stream: x86.__m128i = ---
+	stream = intrinsics.unaligned_load((^x86.__m128i)(raw_data(data)))
 	stream = encrypt_block_raw_hw(ctx, stream)
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(data),
-		&stream,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(data)), stream)
 }
 
 @(require_results, private = "file", enable_target_feature="sse2")
 encrypt_block_raw_hw :: proc "contextless" (ctx: Context, block: x86.__m128i) -> x86.__m128i #no_bounds_check {
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_block_ := block
-	stream: Block128_U32
+	stream1: x86.__m128i = block
+	stream2: Block128_U32 = ---
 
 	a :: 0; b :: 1; c :: 2; d :: 3
 	#unroll for round in 0..<8 {
-		stream = transmute(Block128_U32)_block_
+		stream2 = transmute(Block128_U32)stream1
 
-		stream[b] ~= table_g05(stream[a] + ctx.key[7 * round])
-		stream[c] ~= table_g21(stream[d] + ctx.key[7 * round + 1])
-		stream[a] -= table_g13(stream[b] + ctx.key[7 * round + 2])
+		stream2[b] ~= table_g05(stream2[a] + ctx.key[7 * round])
+		stream2[c] ~= table_g21(stream2[d] + ctx.key[7 * round + 1])
+		stream2[a] -= table_g13(stream2[b] + ctx.key[7 * round + 2])
 
-		stream[c] += stream[b]
-		stream[b] += table_g21(stream[c] + ctx.key[7 * round + 3]) ~ u32(1 + round)
-		stream[c] -= stream[b]
+		stream2[c] += stream2[b]
+		stream2[b] += table_g21(stream2[c] + ctx.key[7 * round + 3]) ~ u32(1 + round)
+		stream2[c] -= stream2[b]
 
-		stream[d] += table_g13(stream[c] + ctx.key[7 * round + 4])
-		stream[b] ~= table_g21(stream[a] + ctx.key[7 * round + 5])
-		stream[c] ~= table_g05(stream[d] + ctx.key[7 * round + 6])
+		stream2[d] += table_g13(stream2[c] + ctx.key[7 * round + 4])
+		stream2[b] ~= table_g21(stream2[a] + ctx.key[7 * round + 5])
+		stream2[c] ~= table_g05(stream2[d] + ctx.key[7 * round + 6])
 
-		_block_ = transmute(x86.__m128i)stream
-		_block_ = x86._mm_shuffle_epi32(_block_, 0x8d)
+		stream1 = transmute(x86.__m128i)stream2
+		stream1 = x86._mm_shuffle_epi32(stream1, 0x8d)
 	}
 
-	return x86._mm_shuffle_epi32(_block_, 0x8d)
+	return x86._mm_shuffle_epi32(stream1, 0x8d)
 }
 
 /* Block cipher: belt-decrypt-block */
@@ -143,49 +120,40 @@ decrypt_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_c
 	assert_contextless(len(data) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	stream: x86.__m128i
-	intrinsics.mem_copy_non_overlapping(
-		&stream,
-		raw_data(data),
-		BLOCK_SIZE_128_U8,
-	)
-
+	stream: x86.__m128i = ---
+	stream = intrinsics.unaligned_load((^x86.__m128i)(raw_data(data)))
 	stream = decrypt_block_raw_hw(ctx, stream)
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(data),
-		&stream,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(data)), stream)
 }
 
 @(require_results, private = "file", enable_target_feature="sse2")
 decrypt_block_raw_hw :: proc "contextless" (ctx: Context, block: x86.__m128i) -> x86.__m128i #no_bounds_check {
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_block_ := block
-	stream: Block128_U32
+	stream1: x86.__m128i = block
+	stream2: Block128_U32 = ---
 
 	a :: 0; b :: 1; c :: 2; d :: 3
 	#unroll for round in 0..<8 {
-		stream = transmute(Block128_U32)_block_
+		stream2 = transmute(Block128_U32)stream1
 
-		stream[b] ~= table_g05(stream[a] + ctx.key[55 - 7 * round])
-		stream[c] ~= table_g21(stream[d] + ctx.key[54 - 7 * round])
-		stream[a] -= table_g13(stream[b] + ctx.key[53 - 7 * round])
+		stream2[b] ~= table_g05(stream2[a] + ctx.key[55 - 7 * round])
+		stream2[c] ~= table_g21(stream2[d] + ctx.key[54 - 7 * round])
+		stream2[a] -= table_g13(stream2[b] + ctx.key[53 - 7 * round])
 
-		stream[c] += stream[b]
-		stream[b] += table_g21(stream[c] + ctx.key[52 - 7 * round]) ~ u32(8 - round)
-		stream[c] -= stream[b]
+		stream2[c] += stream2[b]
+		stream2[b] += table_g21(stream2[c] + ctx.key[52 - 7 * round]) ~ u32(8 - round)
+		stream2[c] -= stream2[b]
 
-		stream[d] += table_g13(stream[c] + ctx.key[51 - 7 * round])
-		stream[b] ~= table_g21(stream[a] + ctx.key[50 - 7 * round])
-		stream[c] ~= table_g05(stream[d] + ctx.key[49 - 7 * round])
+		stream2[d] += table_g13(stream2[c] + ctx.key[51 - 7 * round])
+		stream2[b] ~= table_g21(stream2[a] + ctx.key[50 - 7 * round])
+		stream2[c] ~= table_g05(stream2[d] + ctx.key[49 - 7 * round])
 
-		_block_ = transmute(x86.__m128i)stream
-		_block_ = x86._mm_shuffle_epi32(_block_, 0x72)
+		stream1 = transmute(x86.__m128i)stream2
+		stream1 = x86._mm_shuffle_epi32(stream1, 0x72)
 	}
 
-	return x86._mm_shuffle_epi32(_block_, 0x72)
+	return x86._mm_shuffle_epi32(stream1, 0x72)
 }
 
 /* Wide block cipher: belt-encrypt-wide-block */
@@ -196,33 +164,22 @@ encrypt_wide_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bou
 	assert_contextless(data_size >= BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
-
+	stream: []byte = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 
 	num_rounds := 2 * ((uint(data_size) + BLOCK_SIZE_128_U8 - 1) / BLOCK_SIZE_128_U8)
 	for round := uint(1); round <= num_rounds; round += 1 {
 
-		stream := data
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		stream = data
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block1 = _stream_
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size := data_size - BLOCK_SIZE_128_U8
 
 		for stream_size > BLOCK_SIZE_128_U8 {
-			intrinsics.mem_copy_non_overlapping(
-				&_stream_,
-				raw_data(stream),
-				BLOCK_SIZE_128_U8,
-			)
-
-			block1 = x86._mm_xor_si128(block1, _stream_)
+			block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
+			block1 = x86._mm_xor_si128(block1, block2)
 
 			stream = stream[BLOCK_SIZE_128_U8:]
 			stream_size -= BLOCK_SIZE_128_U8
@@ -235,29 +192,16 @@ encrypt_wide_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bou
 		)
 
 		stream = data[data_size - BLOCK_SIZE_128_U8:]
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
-
-		stream = data[data_size - BLOCK_SIZE_256_U8: data_size - BLOCK_SIZE_128_U8]
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		block1 = encrypt_block_raw_hw(ctx, block1)
 		block2 = transmute(x86.__m128i)u128(round)
 		block1 = x86._mm_xor_si128(block1, block2)
-		block1 = x86._mm_xor_si128(block1, _stream_)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
+		stream = data[data_size - BLOCK_SIZE_256_U8:]
+		block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
+		block1 = x86._mm_xor_si128(block1, block2)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 	}
 }
 
@@ -269,20 +213,16 @@ decrypt_wide_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bou
 	assert_contextless(data_size >= BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
-
+	stream: []byte = ---
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 
 	num_rounds := 2 * ((uint(data_size) + BLOCK_SIZE_128_U8 - 1) / BLOCK_SIZE_128_U8)
 	for round := num_rounds; round >= 1; round -= 1 {
 
-		stream := data[data_size - BLOCK_SIZE_128_U8:]
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		stream = data[data_size - BLOCK_SIZE_128_U8:]
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 		intrinsics.mem_copy(
 			raw_data(data[BLOCK_SIZE_128_U8:]),
@@ -290,45 +230,27 @@ decrypt_wide_block_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bou
 			data_size - BLOCK_SIZE_128_U8,
 		)
 
-		block1 = encrypt_block_raw_hw(ctx, _stream_)
+		block1 = encrypt_block_raw_hw(ctx, block0)
 		block2 = transmute(x86.__m128i)u128(round)
 		block1 = x86._mm_xor_si128(block1, block2)
 
-		stream = data[data_size - BLOCK_SIZE_128_U8:]
-		intrinsics.mem_copy_non_overlapping(
-			&block2,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
-
-		block2 = x86._mm_xor_si128(block2, block1)
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block2,
-			BLOCK_SIZE_128_U8,
-		)
+		block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
+		block1 = x86._mm_xor_si128(block1, block2)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		stream = data[BLOCK_SIZE_128_U8:]
 		stream_size := data_size - BLOCK_SIZE_128_U8
-		for stream_size > BLOCK_SIZE_128_U8 {
-			intrinsics.mem_copy_non_overlapping(
-				&block1,
-				raw_data(stream),
-				BLOCK_SIZE_128_U8,
-			)
 
-			_stream_ = x86._mm_xor_si128(_stream_, block1)
+		for stream_size > BLOCK_SIZE_128_U8 {
+			block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
+			block0 = x86._mm_xor_si128(block0, block2)
 
 			stream = stream[BLOCK_SIZE_128_U8:]
 			stream_size -= BLOCK_SIZE_128_U8
 		}
 
 		stream = data
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_stream_,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block0)
 	}
 }
 
@@ -340,18 +262,18 @@ encrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
+	block: Block128_U8 = ---
+
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		encrypt_block_hw(ctx, stream[:BLOCK_SIZE_128_U8])
+		encrypt_block_hw(ctx, stream)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		block: Block128_U8 = ---
-
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
 
 		intrinsics.mem_copy_non_overlapping(
@@ -362,11 +284,9 @@ encrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(block[stream_size:]),
-			raw_data(stream[stream_size: BLOCK_SIZE_128_U8]),
+			raw_data(stream[stream_size:]),
 			BLOCK_SIZE_128_U8 - stream_size,
 		)
-
-		encrypt_block_hw(ctx, block[:])
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream[BLOCK_SIZE_128_U8:]),
@@ -374,11 +294,8 @@ encrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 			stream_size,
 		)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream[:BLOCK_SIZE_128_U8]),
-			&block,
-			BLOCK_SIZE_128_U8,
-		)
+		encrypt_block_hw(ctx, block[:])
+		intrinsics.unaligned_store((^Block128_U8)(raw_data(stream)), block)
 	}
 }
 
@@ -390,18 +307,18 @@ decrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
+	block: Block128_U8 = ---
+
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		decrypt_block_hw(ctx, stream[:BLOCK_SIZE_128_U8])
+		decrypt_block_hw(ctx, stream)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		block: Block128_U8 = ---
-
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
 
 		intrinsics.mem_copy_non_overlapping(
@@ -412,11 +329,9 @@ decrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(block[stream_size:]),
-			raw_data(stream[stream_size: BLOCK_SIZE_128_U8]),
+			raw_data(stream[stream_size:]),
 			BLOCK_SIZE_128_U8 - stream_size,
 		)
-
-		decrypt_block_hw(ctx, block[:])
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream[BLOCK_SIZE_128_U8:]),
@@ -424,11 +339,8 @@ decrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 			stream_size,
 		)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream[:BLOCK_SIZE_128_U8]),
-			&block,
-			BLOCK_SIZE_128_U8,
-		)
+		decrypt_block_hw(ctx, block[:])
+		intrinsics.unaligned_store((^Block128_U8)(raw_data(stream)), block)
 	}
 }
 
@@ -441,65 +353,50 @@ encrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
+	block0: Block128_U8 = ---
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
 
-	block: x86.__m128i = ---
-
-	intrinsics.mem_copy_non_overlapping(
-		&block,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block = x86._mm_xor_si128(block, _stream_)
-		block = encrypt_block_raw_hw(ctx, block)
+		block2 = x86._mm_xor_si128(block2, block1)
+		block2 = encrypt_block_raw_hw(ctx, block2)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		_bytes_: Block128_U8
-
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block1,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block = x86._mm_xor_si128(block, _stream_)
+		block2 = x86._mm_xor_si128(block2, block1)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_bytes_,
-			&block,
+			&block0,
+			&block2,
 			stream_size,
 		)
 
 		stream = data[data_size - stream_size - BLOCK_SIZE_128_U8:]
+
 		intrinsics.mem_copy_non_overlapping(
-			raw_data(_bytes_[stream_size:]),
-			raw_data(stream[stream_size: BLOCK_SIZE_128_U8]),
+			raw_data(block0[stream_size:]),
+			raw_data(stream[stream_size:]),
 			BLOCK_SIZE_128_U8 - stream_size,
 		)
-
-		encrypt_block_hw(ctx, _bytes_[:])
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream[BLOCK_SIZE_128_U8:]),
@@ -507,11 +404,8 @@ encrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 			stream_size,
 		)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_bytes_,
-			BLOCK_SIZE_128_U8,
-		)
+		encrypt_block_hw(ctx, block0[:])
+		intrinsics.unaligned_store((^Block128_U8)(raw_data(stream)), block0)
 	}
 }
 
@@ -524,96 +418,68 @@ decrypt_cbc_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(data_size >= BLOCK_SIZE_128_U8, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
-
+	block0: Block128_U8 = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
+	block3: x86.__m128i = ---
 
-	intrinsics.mem_copy_non_overlapping(
-		&block2,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_256_U8 || stream_size == BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block3 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block1 = decrypt_block_raw_hw(ctx, _stream_)
+		block1 = decrypt_block_raw_hw(ctx, block3)
 		block1 = x86._mm_xor_si128(block1, block2)
-		block2 = _stream_
+		block2 = block3
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		_bytes_: Block128_U8
+		intrinsics.mem_zero(&block3, BLOCK_SIZE_128_U8)
 
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
-
-		intrinsics.mem_copy_non_overlapping(
-			&_bytes_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
-
-		decrypt_block_hw(ctx, _bytes_[:])
+		block0 = intrinsics.unaligned_load((^Block128_U8)(raw_data(stream)))
+		decrypt_block_hw(ctx, block0[:])
 
 		intrinsics.mem_copy_non_overlapping(
 			&block1,
-			&_bytes_,
+			&block0,
 			stream_size - BLOCK_SIZE_128_U8,
 		)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream[BLOCK_SIZE_128_U8: stream_size]),
+			&block3,
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
 			stream_size - BLOCK_SIZE_128_U8,
 		)
 
-		block1 = x86._mm_xor_si128(block1, _stream_)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
-		block1 = x86._mm_xor_si128(block1, _stream_)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block1 = x86._mm_xor_si128(block1, block3)
+		block3 = x86._mm_xor_si128(block3, block1)
+		block1 = x86._mm_xor_si128(block1, block3)
+		block3 = x86._mm_xor_si128(block3, block1)
 
 		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream[BLOCK_SIZE_128_U8: stream_size]),
-			&_stream_,
+			raw_data(stream[BLOCK_SIZE_128_U8:]),
+			&block3,
 			stream_size - BLOCK_SIZE_128_U8,
 		)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_bytes_,
+			&block0,
 			&block1,
 			stream_size - BLOCK_SIZE_128_U8,
 		)
 
-		intrinsics.mem_copy_non_overlapping(
-			&block1,
-			&_bytes_,
-			BLOCK_SIZE_128_U8,
-		)
-
+		block1 = transmute(x86.__m128i)block0
 		block1 = decrypt_block_raw_hw(ctx, block1)
 		block1 = x86._mm_xor_si128(block1, block2)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 	}
 }
 
@@ -626,53 +492,40 @@ encrypt_cfb_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
 
-	block: x86.__m128i = ---
-
-	intrinsics.mem_copy_non_overlapping(
-		&block,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block = encrypt_block_raw_hw(ctx, block)
-		block = x86._mm_xor_si128(block, _stream_)
+		block2 = encrypt_block_raw_hw(ctx, block2)
+		block2 = x86._mm_xor_si128(block2, block1)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block1,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block = encrypt_block_raw_hw(ctx, block)
-		block = x86._mm_xor_si128(block, _stream_)
+		block2 = encrypt_block_raw_hw(ctx, block2)
+		block2 = x86._mm_xor_si128(block2, block1)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
-			&block,
+			&block2,
 			stream_size,
 		)
 	}
@@ -687,57 +540,44 @@ decrypt_cfb_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
 
-	block: x86.__m128i = ---
-
-	intrinsics.mem_copy_non_overlapping(
-		&block,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block = encrypt_block_raw_hw(ctx, block)
-		block = x86._mm_xor_si128(block, _stream_)
+		block2 = encrypt_block_raw_hw(ctx, block2)
+		block2 = x86._mm_xor_si128(block2, block1)
 
-		_stream_ = x86._mm_xor_si128(_stream_, block)
-		block = x86._mm_xor_si128(block, _stream_)
-		_stream_ = x86._mm_xor_si128(_stream_, block)
+		block1 = x86._mm_xor_si128(block1, block2)
+		block2 = x86._mm_xor_si128(block2, block1)
+		block1 = x86._mm_xor_si128(block1, block2)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_stream_,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block1,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block = encrypt_block_raw_hw(ctx, block)
-		block = x86._mm_xor_si128(block, _stream_)
+		block2 = encrypt_block_raw_hw(ctx, block2)
+		block2 = x86._mm_xor_si128(block2, block1)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
-			&block,
+			&block2,
 			stream_size,
 		)
 	}
@@ -752,54 +592,40 @@ encrypt_ctr_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 
-	intrinsics.mem_copy_non_overlapping(
-		&block2,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block2 = encrypt_block_raw_hw(ctx, block2)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 		block2 = transmute(x86.__m128i)(transmute(u128)block2 + 1)
 		block1 = encrypt_block_raw_hw(ctx, block2)
-		block1 = x86._mm_xor_si128(block1, _stream_)
+		block1 = x86._mm_xor_si128(block1, block0)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
 		block2 = transmute(x86.__m128i)(transmute(u128)block2 + 1)
 		block1 = encrypt_block_raw_hw(ctx, block2)
-		block1 = x86._mm_xor_si128(block1, _stream_)
+		block1 = x86._mm_xor_si128(block1, block0)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
@@ -838,62 +664,53 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_bytes_: Block128_U8
-	_stream_: x86.__m128i
-
+	block0: Block128_U8
 	block1: x86.__m128i
 	block2: x86.__m128i
+	block3: x86.__m128i
 
 	stream := data
 	stream_size := data_size
 
-	block1 = encrypt_block_raw_hw(ctx, block1)
+	block2 = encrypt_block_raw_hw(ctx, block2)
 	for stream_size > BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block2 = x86._mm_xor_si128(block2, _stream_)
-		block2 = encrypt_block_raw_hw(ctx, block2)
+		block3 = x86._mm_xor_si128(block3, block1)
+		block3 = encrypt_block_raw_hw(ctx, block3)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size == BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block1 = table_φ1_hw(block1)
-		block2 = x86._mm_xor_si128(block2, block1)
-		block2 = x86._mm_xor_si128(block2, _stream_)
+		block2 = table_φ1_hw(block2)
+		block3 = x86._mm_xor_si128(block3, block2)
+		block3 = x86._mm_xor_si128(block3, block1)
 	} else {
 		intrinsics.mem_copy_non_overlapping(
-			&_bytes_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
 		ψ_unit :: 0x80
-		_bytes_[stream_size] = ψ_unit
-		_stream_ = transmute(x86.__m128i)_bytes_
+		block0[stream_size] = ψ_unit
+		block1 = transmute(x86.__m128i)block0
 
-		block1 = table_φ2_hw(block1)
-		block2 = x86._mm_xor_si128(block2, block1)
-		block2 = x86._mm_xor_si128(block2, _stream_)
+		block2 = table_φ2_hw(block2)
+		block3 = x86._mm_xor_si128(block3, block2)
+		block3 = x86._mm_xor_si128(block3, block1)
 	}
 
-	block2 = encrypt_block_raw_hw(ctx, block2)
-	_bytes_ = transmute(Block128_U8)block2
+	block3 = encrypt_block_raw_hw(ctx, block3)
+	block0 = transmute(Block128_U8)block3
 
 	intrinsics.mem_copy_non_overlapping(
 		raw_data(mac),
-		&_bytes_,
+		&block0,
 		BLOCK_SIZE_64_U8,
 	)
 }
@@ -908,8 +725,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 	block3: x86.__m128i = ---
@@ -924,12 +740,7 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 
-	intrinsics.mem_copy_non_overlapping(
-		&block3,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block3 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
 	block5 = transmute(x86.__m128i)BLOCK_T
 
@@ -939,13 +750,9 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
@@ -953,46 +760,38 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&block1,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 		block3 = transmute(x86.__m128i)(transmute(u128)block3 + 1)
-		_stream_ = encrypt_block_raw_hw(ctx, block3)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block0 = encrypt_block_raw_hw(ctx, block3)
+		block0 = x86._mm_xor_si128(block0, block1)
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_stream_,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block0)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&block1, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&block1,
@@ -1001,24 +800,24 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		)
 
 		block3 = transmute(x86.__m128i)(transmute(u128)block3 + 1)
-		_stream_ = encrypt_block_raw_hw(ctx, block3)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block0 = encrypt_block_raw_hw(ctx, block3)
+		block0 = x86._mm_xor_si128(block0, block1)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
-			&_stream_,
+			&block0,
 			stream_size,
 		)
 
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 	}
 
@@ -1043,8 +842,7 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 	block3: x86.__m128i = ---
@@ -1059,12 +857,7 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 
-	intrinsics.mem_copy_non_overlapping(
-		&block3,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block3 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
 	block5 = transmute(x86.__m128i)BLOCK_T
 
@@ -1074,13 +867,9 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
@@ -1088,59 +877,51 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 
 		block3 = transmute(x86.__m128i)(transmute(u128)block3 + 1)
 		block1 = encrypt_block_raw_hw(ctx, block3)
-		block1 = x86._mm_xor_si128(block1, _stream_)
+		block1 = x86._mm_xor_si128(block1, block0)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block5 = x86._mm_xor_si128(block5, _stream_)
+		block5 = x86._mm_xor_si128(block5, block0)
 		block5 = gf128mul_raw_hw(block5, block2)
 
 		block3 = transmute(x86.__m128i)(transmute(u128)block3 + 1)
 		block1 = encrypt_block_raw_hw(ctx, block3)
-		block1 = x86._mm_xor_si128(block1, _stream_)
+		block1 = x86._mm_xor_si128(block1, block0)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
@@ -1177,8 +958,7 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 	block3: x86.__m128i = ---
@@ -1199,12 +979,7 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 
-	intrinsics.mem_copy_non_overlapping(
-		&block3,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block3 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
 	block5 = transmute(x86.__m128i)BLOCK_C
 	block6 = transmute(x86.__m128i)BLOCK_T
@@ -1215,13 +990,9 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
@@ -1229,49 +1000,41 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&block1,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 		block3 = gf128mul_raw_hw(block3, block5)
-		_stream_ = transmute(x86.__m128i)u128(1)
-		block3 = x86._mm_xor_si128(block3, _stream_)
+		block0 = transmute(x86.__m128i)u128(1)
+		block3 = x86._mm_xor_si128(block3, block0)
 
-		_stream_ = encrypt_block_raw_hw(ctx, block3)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block0 = encrypt_block_raw_hw(ctx, block3)
+		block0 = x86._mm_xor_si128(block0, block1)
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_stream_,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block0)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&block1, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block1, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
 			&block1,
@@ -1280,27 +1043,27 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 		)
 
 		block3 = gf128mul_raw_hw(block3, block5)
-		_stream_ = transmute(x86.__m128i)u128(1)
-		block3 = x86._mm_xor_si128(block3, _stream_)
+		block0 = transmute(x86.__m128i)u128(1)
+		block3 = x86._mm_xor_si128(block3, block0)
 
-		_stream_ = encrypt_block_raw_hw(ctx, block3)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block0 = encrypt_block_raw_hw(ctx, block3)
+		block0 = x86._mm_xor_si128(block0, block1)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
-			&_stream_,
+			&block0,
 			stream_size,
 		)
 
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 	}
 
@@ -1325,8 +1088,7 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 	block3: x86.__m128i = ---
@@ -1347,12 +1109,7 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	modulus1 := u64((BITS_PER_BYTE * u128(aad_size))  & u128(max(u64)))
 	modulus2 := u64((BITS_PER_BYTE * u128(data_size)) & u128(max(u64)))
 
-	intrinsics.mem_copy_non_overlapping(
-		&block3,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block3 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block4 = x86.__m128i {transmute(i64)modulus1, transmute(i64)modulus2}
 	block5 = transmute(x86.__m128i)BLOCK_C
 	block6 = transmute(x86.__m128i)BLOCK_T
@@ -1363,13 +1120,9 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	stream := aad
 	stream_size := aad_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
@@ -1377,28 +1130,24 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 	}
 
 	stream = data
 	stream_size = data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 
 		block3 = gf128mul_raw_hw(block3, block5)
@@ -1406,28 +1155,24 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 		block3 = x86._mm_xor_si128(block3, block1)
 
 		block1 = encrypt_block_raw_hw(ctx, block3)
-		block1 = x86._mm_xor_si128(block1, _stream_)
+		block1 = x86._mm_xor_si128(block1, block0)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&block1,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block1)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_128_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_128_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		block6 = x86._mm_xor_si128(block6, _stream_)
+		block6 = x86._mm_xor_si128(block6, block0)
 		block6 = gf128mul_raw_hw(block6, block2)
 
 		block3 = gf128mul_raw_hw(block3, block5)
@@ -1435,7 +1180,7 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 		block3 = x86._mm_xor_si128(block3, block1)
 
 		block1 = encrypt_block_raw_hw(ctx, block3)
-		block1 = x86._mm_xor_si128(block1, _stream_)
+		block1 = x86._mm_xor_si128(block1, block0)
 
 		intrinsics.mem_copy_non_overlapping(
 			raw_data(stream),
@@ -1526,35 +1271,17 @@ compress_hw :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check 
 	assert_contextless(len(compr) == BLOCK_SIZE_256_U8, "crypto/belt: invalid COMPR size")
 	assert_contextless(len(data)  == BLOCK_SIZE_256_U8, "crypto/belt: invalid DATA size")
 
-	a :: 0; b :: 1
-	block: x86.__m128i
-	data1, data2: [2]x86.__m128i
+	block: x86.__m128i = ---
+	data1: [2]x86.__m128i = ---
+	data2: [2]x86.__m128i = ---
 
-	intrinsics.mem_copy_non_overlapping(
-		&data1,
-		raw_data(data),
-		BLOCK_SIZE_256_U8,
-	)
-
-	intrinsics.mem_copy_non_overlapping(
-		&data2,
-		raw_data(compr),
-		BLOCK_SIZE_256_U8,
-	)
+	data1 = intrinsics.unaligned_load((^[2]x86.__m128i)(raw_data(data)))
+	data2 = intrinsics.unaligned_load((^[2]x86.__m128i)(raw_data(compr)))
 
 	block, data2 = compress_raw_hw(data1, data2)
 
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(compr),
-		&data2,
-		BLOCK_SIZE_256_U8,
-	)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(dummy),
-		&block,
-		BLOCK_SIZE_256_U8,
-	)
+	intrinsics.unaligned_store((^[2]x86.__m128i)(raw_data(compr)), data2)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(dummy)), block)
 }
 
 @(private = "package", enable_target_feature="sse2")
@@ -1605,11 +1332,10 @@ derive_hash_hw :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
 
 	a :: 0; b :: 1
-	_stream_: [2]x86.__m128i
-
-	block1: [2]x86.__m128i
+	dummy: x86.__m128i = ---
+	block0: [2]x86.__m128i = ---
+	block1: [2]x86.__m128i = ---
 	block2: [2]x86.__m128i
-	dummy: x86.__m128i
 
 	BLOCK_H1 := Block128_U8 {
 		0xb1, 0x94, 0xba, 0xc8, 0x0a, 0x08, 0xf5, 0x3b,
@@ -1628,13 +1354,9 @@ derive_hash_hw :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_256_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_256_U8,
-		)
+		block0 = intrinsics.unaligned_load((^[2]x86.__m128i)(raw_data(stream)))
 
-		dummy, block1 = compress_raw_hw(_stream_, block1)
+		dummy, block1 = compress_raw_hw(block0, block1)
 		block2[b] = x86._mm_xor_si128(block2[b], dummy)
 
 		stream = stream[BLOCK_SIZE_256_U8:]
@@ -1642,25 +1364,20 @@ derive_hash_hw :: proc "contextless" (hash, data: []byte) #no_bounds_check {
 	}
 
 	if stream_size > 0 {
-		zero_explicit(&_stream_, BLOCK_SIZE_256_U8)
+		intrinsics.mem_zero(&block0, BLOCK_SIZE_256_U8)
 
 		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
+			&block0,
 			raw_data(stream),
 			stream_size,
 		)
 
-		dummy, block1 = compress_raw_hw(_stream_, block1)
+		dummy, block1 = compress_raw_hw(block0, block1)
 		block2[b] = x86._mm_xor_si128(block2[b], dummy)
 	}
 
 	dummy, block1 = compress_raw_hw(block2, block1)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(hash),
-		&block1,
-		BLOCK_SIZE_256_U8,
-	)
+	intrinsics.unaligned_store((^[2]x86.__m128i)(raw_data(hash)), block1)
 }
 
 /* Block level encryption: belt-encrypt-bde */
@@ -1677,8 +1394,7 @@ encrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 
@@ -1687,34 +1403,21 @@ encrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 
-	intrinsics.mem_copy_non_overlapping(
-		&block1,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block2 = transmute(x86.__m128i)BLOCK_C
 	block1 = encrypt_block_raw_hw(ctx, block1)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 		block1 = gf128mul_raw_hw(block1, block2)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
-		_stream_ = encrypt_block_raw_hw(ctx, _stream_)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block0 = x86._mm_xor_si128(block0, block1)
+		block0 = encrypt_block_raw_hw(ctx, block0)
+		block0 = x86._mm_xor_si128(block0, block1)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_stream_,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block0)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -1735,8 +1438,7 @@ decrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
-
+	block0: x86.__m128i = ---
 	block1: x86.__m128i = ---
 	block2: x86.__m128i = ---
 
@@ -1745,34 +1447,21 @@ decrypt_bde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 
-	intrinsics.mem_copy_non_overlapping(
-		&block1,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
-
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 	block2 = transmute(x86.__m128i)BLOCK_C
 	block1 = encrypt_block_raw_hw(ctx, block1)
 
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		intrinsics.mem_copy_non_overlapping(
-			&_stream_,
-			raw_data(stream),
-			BLOCK_SIZE_128_U8,
-		)
+		block0 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 		block1 = gf128mul_raw_hw(block1, block2)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
-		_stream_ = decrypt_block_raw_hw(ctx, _stream_)
-		_stream_ = x86._mm_xor_si128(_stream_, block1)
+		block0 = x86._mm_xor_si128(block0, block1)
+		block0 = decrypt_block_raw_hw(ctx, block0)
+		block0 = x86._mm_xor_si128(block0, block1)
 
-		intrinsics.mem_copy_non_overlapping(
-			raw_data(stream),
-			&_stream_,
-			BLOCK_SIZE_128_U8,
-		)
+		intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), block0)
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -1793,47 +1482,23 @@ encrypt_sde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
 
-	block: x86.__m128i = ---
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(data)))
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 
-	intrinsics.mem_copy_non_overlapping(
-		&block,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
+	block2 = encrypt_block_raw_hw(ctx, block2)
+	block1 = x86._mm_xor_si128(block1, block2)
 
-	block = encrypt_block_raw_hw(ctx, block)
-
-	intrinsics.mem_copy_non_overlapping(
-		&_stream_,
-		raw_data(data),
-		BLOCK_SIZE_128_U8,
-	)
-
-	_stream_ = x86._mm_xor_si128(_stream_, block)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(data),
-		&_stream_,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(data)), block1)
 
 	encrypt_wide_block_hw(ctx, data)
 
-	intrinsics.mem_copy_non_overlapping(
-		&_stream_,
-		raw_data(data),
-		BLOCK_SIZE_128_U8,
-	)
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(data)))
+	block1 = x86._mm_xor_si128(block1, block2)
 
-	_stream_ = x86._mm_xor_si128(_stream_, block)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(data),
-		&_stream_,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(data)), block1)
 }
 
 /* Sector level encryption: belt-decrypt-sde */
@@ -1850,47 +1515,23 @@ decrypt_sde_hw :: proc "contextless" (ctx: Context, iv, data: []byte) #no_bounds
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	_stream_: x86.__m128i
+	block1: x86.__m128i = ---
+	block2: x86.__m128i = ---
 
-	block: x86.__m128i = ---
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(data)))
+	block2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(iv)))
 
-	intrinsics.mem_copy_non_overlapping(
-		&block,
-		raw_data(iv),
-		BLOCK_SIZE_128_U8,
-	)
+	block2 = encrypt_block_raw_hw(ctx, block2)
+	block1 = x86._mm_xor_si128(block1, block2)
 
-	block = encrypt_block_raw_hw(ctx, block)
-
-	intrinsics.mem_copy_non_overlapping(
-		&_stream_,
-		raw_data(data),
-		BLOCK_SIZE_128_U8,
-	)
-
-	_stream_ = x86._mm_xor_si128(_stream_, block)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(data),
-		&_stream_,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(data)), block1)
 
 	decrypt_wide_block_hw(ctx, data)
 
-	intrinsics.mem_copy_non_overlapping(
-		&_stream_,
-		raw_data(data),
-		BLOCK_SIZE_128_U8,
-	)
+	block1 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(data)))
+	block1 = x86._mm_xor_si128(block1, block2)
 
-	_stream_ = x86._mm_xor_si128(_stream_, block)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(data),
-		&_stream_,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(data)), block1)
 }
 
 /* Derive key {128, 192, 256} from key {128, 192, 256}: belt-derive-key */
@@ -1967,9 +1608,9 @@ encrypt_block32_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 	assert_contextless(len(data) == BLOCK_SIZE_192_U8, "crypto/belt: invalid DATA size")
 	assert_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
-	block: x86.__m128i
+	block: x86.__m128i = ---
 	stream1: x86.__m128i
-	stream2: x86.__m128i
+	stream2: x86.__m128i = ---
 
 	intrinsics.mem_copy_non_overlapping(
 		&stream1,
@@ -1978,11 +1619,7 @@ encrypt_block32_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 	)
 
 	stream := data[BLOCK_SIZE_64_U8:]
-	intrinsics.mem_copy_non_overlapping(
-		&stream2,
-		raw_data(stream),
-		BLOCK_SIZE_128_U8,
-	)
+	stream2 = intrinsics.unaligned_load((^x86.__m128i)(raw_data(stream)))
 
 	#unroll for round in 1..=3 {
 		block = transmute(x86.__m128i)u128(round)
@@ -2003,11 +1640,7 @@ encrypt_block32_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 		BLOCK_SIZE_64_U8,
 	)
 
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(stream),
-		&stream2,
-		BLOCK_SIZE_128_U8,
-	)
+	intrinsics.unaligned_store((^x86.__m128i)(raw_data(stream)), stream2)
 }
 
 @(private = "file", enable_target_feature="sse2")
