@@ -6,7 +6,7 @@ encryption and integrity control algorithms
 - **Specification (RU-BY):** [https://apmi.bsu.by/assets/files/std/belt-spec371.pdf](https://apmi.bsu.by/assets/files/std/belt-spec371.pdf)
 
 ## How to Test
-Use `test_belt.bat` or `test_belt.sh`
+Use `belt_test.bat` or `belt_test.sh`
 
 ## How to Benchmark
 Use `belt_benchmark.bat` or `belt_benchmark.sh`

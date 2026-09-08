@@ -1,3 +1,4 @@
+#+build amd64,arm64
 package benchmark
 
 /* STB 34.101.31-2020                                    */
@@ -19,14 +20,18 @@ ITERS :: 10000
 SIZES := []int{64, 1024, 65536}
 
 @(test)
-benchmark_crypto_hash :: proc(t: ^testing.T) {
+benchmark_crypto_hash_hw :: proc(t: ^testing.T) {
+	if !belt.is_hardware_accelerated() {
+		return
+	}
+
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
 
 	tbl: table.Table
 	table.init(&tbl)
 	defer table.destroy(&tbl)
 
-	table.caption(&tbl, "HASH SOFTWARE")
+	table.caption(&tbl, "HASH HARDWARE")
 	table.aligned_header_of_values(&tbl, .Right, "Algorithm", "Size", "Time", "Throughput")
 
 	{
@@ -35,7 +40,7 @@ benchmark_crypto_hash :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = sz,
 				setup = setup_sized_buf,
-				bench = do_bench_hash,
+				bench = do_bench_hash_hw,
 				teardown = teardown_sized_buf,
 			}
 
@@ -46,7 +51,7 @@ benchmark_crypto_hash :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-HASH-256",
+				"BELT-HASH-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -58,7 +63,7 @@ benchmark_crypto_hash :: proc(t: ^testing.T) {
 }
 
 @(private = "file")
-do_bench_hash :: proc(
+do_bench_hash_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -68,9 +73,9 @@ do_bench_hash :: proc(
 	buf := options.input
 
 	for _ in 0 ..= options.rounds {
-		belt.derive_hash(digest[:], buf)
+		belt.derive_hash_hw(digest[:], buf)
 
-		// NOTE(alex): odin-nightly erases the derive_hash;
+		// NOTE(alex): odin-nightly erases the derive_hash_hw;
 		// so I put some extra unreachable branch
 		if len(os.args) == 1000 {
 			fmt.print(digest)

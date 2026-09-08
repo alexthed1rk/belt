@@ -1,3 +1,4 @@
+#+build amd64,arm64
 package benchmark
 
 /* STB 34.101.31-2020                                    */
@@ -18,14 +19,18 @@ ITERS :: 10000
 SIZES := []int{64, 1024, 65536}
 
 @(test)
-benchmark_crypto_stream :: proc(t: ^testing.T) {
+benchmark_crypto_stream_hw :: proc(t: ^testing.T) {
+	if !belt.is_hardware_accelerated() {
+		return
+	}
+
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
 
 	tbl: table.Table
 	table.init(&tbl)
 	defer table.destroy(&tbl)
 
-	table.caption(&tbl, "Stream Cipher SOFTWARE")
+	table.caption(&tbl, "Stream Cipher HARDWARE")
 	table.aligned_header_of_values(&tbl, .Right, "Algorithm", "Size", "Time", "Throughput")
 
 	{
@@ -40,7 +45,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = sz,
 				setup = setup_sized_buf,
-				bench = do_bench_belt_ecb,
+				bench = do_bench_belt_ecb_hw,
 				teardown = teardown_sized_buf,
 			}
 			context.user_ptr = &ctx
@@ -52,7 +57,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-ECB-256",
+				"BELT-ECB-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -74,7 +79,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = belt.BLOCK_SIZE_128_U8 + sz,
 				setup = setup_sized_buf,
-				bench = do_bench_belt_cbc,
+				bench = do_bench_belt_cbc_hw,
 				teardown = teardown_sized_buf,
 			}
 			context.user_ptr = &ctx
@@ -86,7 +91,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-CBC-256",
+				"BELT-CBC-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -108,7 +113,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = belt.BLOCK_SIZE_128_U8 + sz,
 				setup = setup_sized_buf,
-				bench = do_bench_belt_cfb,
+				bench = do_bench_belt_cfb_hw,
 				teardown = teardown_sized_buf,
 			}
 			context.user_ptr = &ctx
@@ -120,7 +125,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-CFB-256",
+				"BELT-CFB-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -142,7 +147,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = belt.BLOCK_SIZE_128_U8 + sz,
 				setup = setup_sized_buf,
-				bench = do_bench_belt_ctr,
+				bench = do_bench_belt_ctr_hw,
 				teardown = teardown_sized_buf,
 			}
 			context.user_ptr = &ctx
@@ -154,7 +159,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-CTR-256",
+				"BELT-CTR-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -176,7 +181,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = belt.BLOCK_SIZE_128_U8 + sz,
 				setup = setup_sized_buf,
-				bench = do_bench_belt_bde,
+				bench = do_bench_belt_bde_hw,
 				teardown = teardown_sized_buf,
 			}
 			context.user_ptr = &ctx
@@ -188,7 +193,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-BDE-256",
+				"BELT-BDE-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -210,7 +215,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 				rounds = ITERS,
 				bytes = belt.BLOCK_SIZE_128_U8 + sz,
 				setup = setup_sized_buf,
-				bench = do_bench_belt_sde,
+				bench = do_bench_belt_sde_hw,
 				teardown = teardown_sized_buf,
 			}
 			context.user_ptr = &ctx
@@ -222,7 +227,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 			table.aligned_row_of_values(
 				&tbl,
 				.Right,
-				"BELT-SDE-256",
+				"BELT-SDE-HW-256",
 				table.format(&tbl, "%d", sz),
 				table.format(&tbl, "%8M", time_per_iter),
 				table.format(&tbl, "%5.3f MiB/s", options.megabytes_per_second),
@@ -234,7 +239,7 @@ benchmark_crypto_stream :: proc(t: ^testing.T) {
 }
 
 @(private = "file")
-do_bench_belt_ecb :: proc(
+do_bench_belt_ecb_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -247,7 +252,7 @@ do_bench_belt_ecb :: proc(
 	buf := options.input[iv_sz:]
 
 	for _ in 0 ..= options.rounds {
-		belt.encrypt_ecb(ctx^, buf)
+		belt.encrypt_ecb_hw(ctx^, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes
@@ -256,7 +261,7 @@ do_bench_belt_ecb :: proc(
 }
 
 @(private = "file")
-do_bench_belt_cbc :: proc(
+do_bench_belt_cbc_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -269,7 +274,7 @@ do_bench_belt_cbc :: proc(
 	buf := options.input[iv_sz:]
 
 	for _ in 0 ..= options.rounds {
-		belt.encrypt_cbc(ctx^, iv, buf)
+		belt.encrypt_cbc_hw(ctx^, iv, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes
@@ -278,7 +283,7 @@ do_bench_belt_cbc :: proc(
 }
 
 @(private = "file")
-do_bench_belt_cfb :: proc(
+do_bench_belt_cfb_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -291,7 +296,7 @@ do_bench_belt_cfb :: proc(
 	buf := options.input[iv_sz:]
 
 	for _ in 0 ..= options.rounds {
-		belt.encrypt_cfb(ctx^, iv, buf)
+		belt.encrypt_cfb_hw(ctx^, iv, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes
@@ -300,7 +305,7 @@ do_bench_belt_cfb :: proc(
 }
 
 @(private = "file")
-do_bench_belt_ctr :: proc(
+do_bench_belt_ctr_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -313,7 +318,7 @@ do_bench_belt_ctr :: proc(
 	buf := options.input[iv_sz:]
 
 	for _ in 0 ..= options.rounds {
-		belt.encrypt_ctr(ctx^, iv, buf)
+		belt.encrypt_ctr_hw(ctx^, iv, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes
@@ -322,7 +327,7 @@ do_bench_belt_ctr :: proc(
 }
 
 @(private = "file")
-do_bench_belt_bde :: proc(
+do_bench_belt_bde_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -335,7 +340,7 @@ do_bench_belt_bde :: proc(
 	buf := options.input[iv_sz:]
 
 	for _ in 0 ..= options.rounds {
-		belt.encrypt_bde(ctx^, iv, buf)
+		belt.encrypt_bde_hw(ctx^, iv, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes
@@ -344,7 +349,7 @@ do_bench_belt_bde :: proc(
 }
 
 @(private = "file")
-do_bench_belt_sde :: proc(
+do_bench_belt_sde_hw :: proc(
 	options: ^time.Benchmark_Options,
 	allocator := context.allocator,
 ) -> (
@@ -357,7 +362,7 @@ do_bench_belt_sde :: proc(
 	buf := options.input[iv_sz:]
 
 	for _ in 0 ..= options.rounds {
-		belt.encrypt_sde(ctx^, iv, buf)
+		belt.encrypt_sde_hw(ctx^, iv, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * options.bytes

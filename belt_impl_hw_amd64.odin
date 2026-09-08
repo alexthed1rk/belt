@@ -58,7 +58,7 @@ gf128mul_raw_hw :: proc "contextless" (a, b: x86.__m128i) -> x86.__m128i #no_bou
 	return x86._mm_xor_si128(block0, block3)
 }
 
-@(private = "package", enable_target_feature="sse2,pclmul")
+@(enable_target_feature="sse2,pclmul")
 gf128mul_hw :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
 	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
@@ -1265,7 +1265,7 @@ open_kwp_hw :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bo
 	}
 }
 
-@(private = "package", enable_target_feature="sse2")
+@(enable_target_feature="sse2")
 compress_hw :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check {
 	assert_contextless(len(dummy) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DUMMY size")
 	assert_contextless(len(compr) == BLOCK_SIZE_256_U8, "crypto/belt: invalid COMPR size")

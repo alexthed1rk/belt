@@ -1792,7 +1792,6 @@ open_kwp :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bool 
 	}
 }
 
-@(private = "package")
 compress :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check {
 	assert_contextless(len(dummy) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DUMMY size")
 	assert_contextless(len(compr) == BLOCK_SIZE_256_U8, "crypto/belt: invalid COMPR size")
@@ -2375,7 +2374,6 @@ gf128mul_raw :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_boun
 	return block0 ~ block3
 }
 
-@(private = "package")
 gf128mul :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
 	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")

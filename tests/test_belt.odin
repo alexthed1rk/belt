@@ -1,15 +1,19 @@
-package belt
+package test_belt
 
 /* STB 34.101.31-2020                                    */
 /* Information technology and security                   */
 /* Encryption and integrity control algorithms           */
 /* https://apmi.bsu.by/assets/files/std/belt-spec371.pdf */
 
+import "base:runtime"
 import "core:encoding/hex"
 import "core:testing"
+import belt ".."
 
 @(test)
 test_encrypt_block :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string   := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 
 	block_string := "b194bac80a08f53b366d008e584a5de4"
@@ -18,10 +22,10 @@ test_encrypt_block :: proc (t: ^testing.T) {
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 	key_data,   _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_block(ctx, block_data)
+	belt.encrypt_block(ctx, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -33,12 +37,12 @@ test_encrypt_block :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_block :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string   := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 
 	block_string := "e12bdc1ae28257ec703fccf095ee8df1"
@@ -47,10 +51,10 @@ test_decrypt_block :: proc (t: ^testing.T) {
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 	key_data,   _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_block(ctx, block_data)
+	belt.decrypt_block(ctx, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -62,12 +66,12 @@ test_decrypt_block :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_wide_block :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string    := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 
 	block_string1 := "b194bac80a08f53b366d008e584a5de48504fa9d1bb6c7ac252e72c202fdce0d5be3d61217b96181fe6786ad716b890b"
@@ -80,11 +84,11 @@ test_encrypt_wide_block :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_wide_block(ctx, block_data1)
-	encrypt_wide_block(ctx, block_data2)
+	belt.encrypt_wide_block(ctx, block_data1)
+	belt.encrypt_wide_block(ctx, block_data2)
 
 	check_string1 := string(hex.encode(block_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(block_data2, context.temp_allocator))
@@ -108,12 +112,12 @@ test_encrypt_wide_block :: proc (t: ^testing.T) {
 		key_string,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_wide_block :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string    := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 
 	block_string1 := "e12bdc1ae28257ec703fccf095ee8df1c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
@@ -126,11 +130,11 @@ test_decrypt_wide_block :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_wide_block(ctx, block_data1)
-	decrypt_wide_block(ctx, block_data2)
+	belt.decrypt_wide_block(ctx, block_data1)
+	belt.decrypt_wide_block(ctx, block_data2)
 
 	check_string1 := string(hex.encode(block_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(block_data2, context.temp_allocator))
@@ -154,12 +158,12 @@ test_decrypt_wide_block :: proc (t: ^testing.T) {
 		key_string,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_ecb :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string    := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 
 	block_string1 := "b194bac80a08f53b366d008e584a5de48504fa9d1bb6c7ac252e72c202fdce0d5be3d61217b96181fe6786ad716b890b"
@@ -172,11 +176,11 @@ test_encrypt_ecb :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_ecb(ctx, block_data1)
-	encrypt_ecb(ctx, block_data2)
+	belt.encrypt_ecb(ctx, block_data1)
+	belt.encrypt_ecb(ctx, block_data2)
 
 	check_string1 := string(hex.encode(block_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(block_data2, context.temp_allocator))
@@ -200,12 +204,12 @@ test_encrypt_ecb :: proc (t: ^testing.T) {
 		key_string,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_ecb :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string    := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 
 	block_string1 := "e12bdc1ae28257ec703fccf095ee8df1c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
@@ -218,11 +222,11 @@ test_decrypt_ecb :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_ecb(ctx, block_data1)
-	decrypt_ecb(ctx, block_data2)
+	belt.decrypt_ecb(ctx, block_data1)
+	belt.decrypt_ecb(ctx, block_data2)
 
 	check_string1 := string(hex.encode(block_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(block_data2, context.temp_allocator))
@@ -246,12 +250,12 @@ test_decrypt_ecb :: proc (t: ^testing.T) {
 		key_string,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_cbc :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string    := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string     := "be32971343fc9a48a02a885f194b09a1"
 
@@ -266,11 +270,11 @@ test_encrypt_cbc :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_cbc(ctx, iv_data, block_data1)
-	encrypt_cbc(ctx, iv_data, block_data2)
+	belt.encrypt_cbc(ctx, iv_data, block_data1)
+	belt.encrypt_cbc(ctx, iv_data, block_data2)
 
 	check_string1 := string(hex.encode(block_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(block_data2, context.temp_allocator))
@@ -296,12 +300,12 @@ test_encrypt_cbc :: proc (t: ^testing.T) {
 		key_string,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_cbc :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string    := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	iv_string     := "7ecda4d01544af8ca58450bf66d2e88a"
 
@@ -316,11 +320,11 @@ test_decrypt_cbc :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_cbc(ctx, iv_data, block_data1)
-	decrypt_cbc(ctx, iv_data, block_data2)
+	belt.decrypt_cbc(ctx, iv_data, block_data1)
+	belt.decrypt_cbc(ctx, iv_data, block_data2)
 
 	check_string1 := string(hex.encode(block_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(block_data2, context.temp_allocator))
@@ -346,12 +350,12 @@ test_decrypt_cbc :: proc (t: ^testing.T) {
 		key_string,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_cfb :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string   := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string    := "be32971343fc9a48a02a885f194b09a1"
 
@@ -362,10 +366,10 @@ test_encrypt_cfb :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_cfb(ctx, iv_data, block_data)
+	belt.encrypt_cfb(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -378,12 +382,12 @@ test_encrypt_cfb :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_cfb :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string   := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	iv_string    := "7ecda4d01544af8ca58450bf66d2e88a"
 
@@ -394,10 +398,10 @@ test_decrypt_cfb :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_cfb(ctx, iv_data, block_data)
+	belt.decrypt_cfb(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -410,12 +414,12 @@ test_decrypt_cfb :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_ctr :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string   := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string    := "be32971343fc9a48a02a885f194b09a1"
 
@@ -426,10 +430,10 @@ test_encrypt_ctr :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_ctr(ctx, iv_data, block_data)
+	belt.encrypt_ctr(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -442,12 +446,12 @@ test_encrypt_ctr :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_ctr :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string   := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	iv_string    := "7ecda4d01544af8ca58450bf66d2e88a"
 
@@ -458,10 +462,10 @@ test_decrypt_ctr :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_ctr(ctx, iv_data, block_data)
+	belt.decrypt_ctr(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -474,12 +478,12 @@ test_decrypt_ctr :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_derive_mac :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string        := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 
 	block_string1     := "b194bac80a08f53b366d008e58"
@@ -492,14 +496,14 @@ test_derive_mac :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	check_mac_data1: Mac64_U8 = ---
-	check_mac_data2: Mac64_U8 = ---
+	check_mac_data1: belt.Mac64_U8 = ---
+	check_mac_data2: belt.Mac64_U8 = ---
 
-	derive_mac(ctx, check_mac_data1[:], block_data1)
-	derive_mac(ctx, check_mac_data2[:], block_data2)
+	belt.derive_mac(ctx, check_mac_data1[:], block_data1)
+	belt.derive_mac(ctx, check_mac_data2[:], block_data2)
 
 	check_mac_string1 := string(hex.encode(check_mac_data1[:], context.temp_allocator))
 	check_mac_string2 := string(hex.encode(check_mac_data2[:], context.temp_allocator))
@@ -523,12 +527,12 @@ test_derive_mac :: proc (t: ^testing.T) {
 		key_string,
 		check_mac_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_gf128mul :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	block_string1 := "3490405511be32971343724c5ab793e9"
 	block_string2 := "224817838761a9d6e3ec9689110fb0f3"
 	truth_string1 := "0001d107fc67de4004dc2c803dfd95c3"
@@ -543,8 +547,8 @@ test_gf128mul :: proc (t: ^testing.T) {
 	block_data3, _ := hex.decode(transmute([]byte)block_string3, context.temp_allocator)
 	block_data4, _ := hex.decode(transmute([]byte)block_string4, context.temp_allocator)
 
-	gf128mul(block_data1, block_data2)
-	gf128mul(block_data3, block_data4)
+	belt.gf128mul(block_data1, block_data2)
+	belt.gf128mul(block_data3, block_data4)
 
 	check_string1 := string(hex.encode(block_data1[:], context.temp_allocator))
 	check_string2 := string(hex.encode(block_data3[:], context.temp_allocator))
@@ -568,12 +572,12 @@ test_gf128mul :: proc (t: ^testing.T) {
 		block_string4,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_seal_dwp :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	aad_string := "8504fa9d1bb6c7ac252e72c202fdce0d5be3d61217b96181fe6786ad716b890b"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
@@ -586,12 +590,12 @@ test_seal_dwp :: proc (t: ^testing.T) {
 	aad_data,   _ := hex.decode(transmute([]byte)aad_string,   context.temp_allocator)
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
-	mac_data: Mac64_U8 = ---
+	mac_data: belt.Mac64_U8 = ---
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	seal_dwp(ctx, iv_data, aad_data, mac_data[:], block_data)
+	belt.seal_dwp(ctx, iv_data, aad_data, mac_data[:], block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 	check_mac_string := string(hex.encode(mac_data[:], context.temp_allocator))
 
@@ -618,12 +622,12 @@ test_seal_dwp :: proc (t: ^testing.T) {
 		aad_string,
 		check_mac_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_open_dwp :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	aad_string := "c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
 	iv_string  := "7ecda4d01544af8ca58450bf66d2e88a"
@@ -639,10 +643,10 @@ test_open_dwp :: proc (t: ^testing.T) {
 	mac_data,   _ := hex.decode(transmute([]byte)mac_string,   context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	check_ok := open_dwp(ctx, iv_data, aad_data, mac_data, block_data)
+	check_ok := belt.open_dwp(ctx, iv_data, aad_data, mac_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -668,12 +672,12 @@ test_open_dwp :: proc (t: ^testing.T) {
 		aad_string,
 		check_ok,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_seal_che :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	aad_string := "8504fa9d1bb6c7ac252e72c202fdce0d5be3d61217b96181fe6786ad716b890b"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
@@ -686,12 +690,12 @@ test_seal_che :: proc (t: ^testing.T) {
 	aad_data,   _ := hex.decode(transmute([]byte)aad_string,   context.temp_allocator)
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
-	mac_data: Mac64_U8 = ---
+	mac_data: belt.Mac64_U8 = ---
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	seal_che(ctx, iv_data, aad_data, mac_data[:], block_data)
+	belt.seal_che(ctx, iv_data, aad_data, mac_data[:], block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 	check_mac_string := string(hex.encode(mac_data[:], context.temp_allocator))
 
@@ -718,12 +722,12 @@ test_seal_che :: proc (t: ^testing.T) {
 		aad_string,
 		check_mac_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_open_che :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	aad_string := "c1ab76389fe678caf7c6f860d5bb9c4ff33c657b637c306add4ea7799eb23d31"
 	iv_string  := "7ecda4d01544af8ca58450bf66d2e88a"
@@ -739,10 +743,10 @@ test_open_che :: proc (t: ^testing.T) {
 	mac_data,   _ := hex.decode(transmute([]byte)mac_string,   context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	check_ok := open_che(ctx, iv_data, aad_data, mac_data, block_data)
+	check_ok := belt.open_che(ctx, iv_data, aad_data, mac_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -768,12 +772,12 @@ test_open_che :: proc (t: ^testing.T) {
 		aad_string,
 		check_ok,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_seal_kwp :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "5be3d61217b96181fe6786ad716b890b"
 
@@ -785,10 +789,10 @@ test_seal_kwp :: proc (t: ^testing.T) {
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 	check_data, _ := hex.decode(transmute([]byte)truth_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	seal_kwp(ctx, check_data, iv_data, block_data)
+	belt.seal_kwp(ctx, check_data, iv_data, block_data)
 	check_string := string(hex.encode(check_data, context.temp_allocator))
 
 	testing.expectf(
@@ -801,12 +805,12 @@ test_seal_kwp :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_open_kwp :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	iv_string  := "b5ef68d8e4a39e567153de13d72254ee"
 
@@ -819,10 +823,10 @@ test_open_kwp :: proc (t: ^testing.T) {
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 	check_data, _ := hex.decode(transmute([]byte)truth_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	check_ok := open_kwp(ctx, block_data, iv_data, check_data)
+	check_ok := belt.open_kwp(ctx, block_data, iv_data, check_data)
 	check_string := string(hex.encode(check_data, context.temp_allocator))
 
 	testing.expectf(
@@ -846,12 +850,12 @@ test_open_kwp :: proc (t: ^testing.T) {
 		key_string,
 		check_ok,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_compress :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	block_string1 := "b194bac80a08f53b366d008e584a5de48504fa9d1bb6c7ac252e72c202fdce0d"
 	block_string2 := "5be3d61217b96181fe6786ad716b890b5cb0c0ff33c356b835c405aed8e07f99"
 	dummy_truth_string := "46fe7425c9b181eb41dfee3e72163d5a"
@@ -860,8 +864,8 @@ test_compress :: proc (t: ^testing.T) {
 	block_data1, _ := hex.decode(transmute([]byte)block_string1, context.temp_allocator)
 	block_data2, _ := hex.decode(transmute([]byte)block_string2, context.temp_allocator)
 
-	dummy_check_data: Block128_U8 = ---
-	compress(dummy_check_data[:], block_data2, block_data1)
+	dummy_check_data: belt.Block128_U8 = ---
+	belt.compress(dummy_check_data[:], block_data2, block_data1)
 
 	dummy_check_string := string(hex.encode(dummy_check_data[:], context.temp_allocator))
 	compr_check_string := string(hex.encode(block_data2[:], context.temp_allocator))
@@ -885,12 +889,12 @@ test_compress :: proc (t: ^testing.T) {
 		block_string2,
 		compr_check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_derive_hash :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	block_string1 := "b194bac80a08f53b366d008e58"
 	truth_string1 := "abef9725d4c5a83597a367d14494cc2542f20f659ddfecc961a3ec550cba8c75"
 
@@ -909,9 +913,9 @@ test_derive_hash :: proc (t: ^testing.T) {
 	block_data3, _ := hex.decode(transmute([]byte)block_string3, context.temp_allocator)
 	check_data3, _ := hex.decode(transmute([]byte)truth_string3, context.temp_allocator)
 
-	derive_hash(check_data1, block_data1)
-	derive_hash(check_data2, block_data2)
-	derive_hash(check_data3, block_data3)
+	belt.derive_hash(check_data1, block_data1)
+	belt.derive_hash(check_data2, block_data2)
+	belt.derive_hash(check_data3, block_data3)
 
 	check_string1 := string(hex.encode(check_data1, context.temp_allocator))
 	check_string2 := string(hex.encode(check_data2, context.temp_allocator))
@@ -943,12 +947,12 @@ test_derive_hash :: proc (t: ^testing.T) {
 		block_string3,
 		check_string3,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_bde :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
 
@@ -959,10 +963,10 @@ test_encrypt_bde :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_bde(ctx, iv_data, block_data)
+	belt.encrypt_bde(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -975,12 +979,12 @@ test_encrypt_bde :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_bde :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	iv_string  := "7ecda4d01544af8ca58450bf66d2e88a"
 
@@ -991,10 +995,10 @@ test_decrypt_bde :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_bde(ctx, iv_data, block_data)
+	belt.decrypt_bde(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -1007,12 +1011,12 @@ test_decrypt_bde :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_sde :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
 
@@ -1023,10 +1027,10 @@ test_encrypt_sde :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	encrypt_sde(ctx, iv_data, block_data)
+	belt.encrypt_sde(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -1039,12 +1043,12 @@ test_encrypt_sde :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_sde :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "92bd9b1ce5d141015445fbc95e4d0ef2682080aa227d642f2687f93490405511"
 	iv_string  := "7ecda4d01544af8ca58450bf66d2e88a"
 
@@ -1055,10 +1059,10 @@ test_decrypt_sde :: proc (t: ^testing.T) {
 	iv_data,    _ := hex.decode(transmute([]byte)iv_string,    context.temp_allocator)
 	block_data, _ := hex.decode(transmute([]byte)block_string, context.temp_allocator)
 
-	ctx: Context = ---
-	init(&ctx, key_data)
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	decrypt_sde(ctx, iv_data, block_data)
+	belt.decrypt_sde(ctx, iv_data, block_data)
 	check_string := string(hex.encode(block_data, context.temp_allocator))
 
 	testing.expectf(
@@ -1071,12 +1075,12 @@ test_decrypt_sde :: proc (t: ^testing.T) {
 		key_string,
 		check_string,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_expand_key :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string1   := "e9dee72c8f0c0fa62ddb49f46f739647"
 	truth_string1 := "e9dee72c8f0c0fa62ddb49f46f739647e9dee72c8f0c0fa62ddb49f46f739647"
 
@@ -1086,11 +1090,11 @@ test_expand_key :: proc (t: ^testing.T) {
 	key_data1,  _ := hex.decode(transmute([]byte)key_string1, context.temp_allocator)
 	key_data2,  _ := hex.decode(transmute([]byte)key_string2, context.temp_allocator)
 
-	check_data1: Key256_U8 = ---
-	check_data2: Key256_U8 = ---
+	check_data1: belt.Key256_U8 = ---
+	check_data2: belt.Key256_U8 = ---
 
-	expand_key(check_data1[:], key_data1)
-	expand_key(check_data2[:], key_data2)
+	belt.expand_key(check_data1[:], key_data1)
+	belt.expand_key(check_data2[:], key_data2)
 
 	check_string1 := string(hex.encode(check_data1[:], context.temp_allocator))
 	check_string2 := string(hex.encode(check_data2[:], context.temp_allocator))
@@ -1112,12 +1116,12 @@ test_expand_key :: proc (t: ^testing.T) {
 		key_string2,
 		check_string2,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_derive_key :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "5be3d61217b96181fe6786ad716b890b"
 	dv_string  := "010000000000000000000000"
@@ -1130,13 +1134,13 @@ test_derive_key :: proc (t: ^testing.T) {
 	iv_data,  _ := hex.decode(transmute([]byte)iv_string,  context.temp_allocator)
 	dv_data,  _ := hex.decode(transmute([]byte)dv_string,  context.temp_allocator)
 
-	check_data1: Key128_U8 = ---
-	check_data2: Key192_U8 = ---
-	check_data3: Key256_U8 = ---
+	check_data1: belt.Key128_U8 = ---
+	check_data2: belt.Key192_U8 = ---
+	check_data3: belt.Key256_U8 = ---
 
-	derive_key(dv_data, iv_data, check_data1[:], key_data)
-	derive_key(dv_data, iv_data, check_data2[:], key_data)
-	derive_key(dv_data, iv_data, check_data3[:], key_data)
+	belt.derive_key(dv_data, iv_data, check_data1[:], key_data)
+	belt.derive_key(dv_data, iv_data, check_data2[:], key_data)
+	belt.derive_key(dv_data, iv_data, check_data3[:], key_data)
 
 	check_string1 := string(hex.encode(check_data1[:], context.temp_allocator))
 	check_string2 := string(hex.encode(check_data2[:], context.temp_allocator))
@@ -1174,44 +1178,39 @@ test_derive_key :: proc (t: ^testing.T) {
 		dv_string,
 		check_string3,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_encrypt_fmt :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
 
 	m1 := 10; n1 :: 10
 	block_data1 := [n1]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, }
+	check_data1 := [n1]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, }
 	truth_data1 := [n1]u16 { 6, 9, 3, 4, 7, 7, 0, 3, 5, 2, }
 
 	m2 := 58; n2 :: 21
 	block_data2 := [n2]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, }
+	check_data2 := [n2]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, }
 	truth_data2 := [n2]u16 { 7, 4, 6, 21, 49, 55, 24, 23, 22, 50, 27, 39, 24, 24, 17, 32, 57, 43, 26, 5, 29, }
 
 	m3 := 65536; n3 :: 17
 	block_data3 := [n3]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, }
+	check_data3 := [n3]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, }
 	truth_data3 := [n3]u16 { 14290, 31359, 58054, 51842, 44653, 34762, 28652, 48929, 6541, 13788, 7784, 46182, 61098, 43056, 3564, 21568, 63878, }
 
 	key_data, _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
 	iv_data,  _ := hex.decode(transmute([]byte)iv_string,  context.temp_allocator)
 
-	check_data1: [n1]u16 = ---
-	check_data2: [n2]u16 = ---
-	check_data3: [n3]u16 = ---
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	copy_slice(check_data1[:], block_data1[:])
-	copy_slice(check_data2[:], block_data2[:])
-	copy_slice(check_data3[:], block_data3[:])
-
-	ctx: Context = ---
-	init(&ctx, key_data)
-
-	encrypt_fmt(ctx, m1, iv_data, check_data1[:])
-	encrypt_fmt(ctx, m2, iv_data, check_data2[:])
-	encrypt_fmt(ctx, m3, iv_data, check_data3[:])
+	belt.encrypt_fmt(ctx, m1, iv_data, check_data1[:])
+	belt.encrypt_fmt(ctx, m2, iv_data, check_data2[:])
+	belt.encrypt_fmt(ctx, m3, iv_data, check_data3[:])
 
 	testing.expectf(
 		t,
@@ -1245,44 +1244,39 @@ test_encrypt_fmt :: proc (t: ^testing.T) {
 		key_string,
 		check_data3,
 	)
-
-	free_all(context.temp_allocator)
 }
 
 @(test)
 test_decrypt_fmt :: proc (t: ^testing.T) {
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+
 	key_string := "e9dee72c8f0c0fa62ddb49f46f73964706075316ed247a3739cba38303a98bf6"
 	iv_string  := "be32971343fc9a48a02a885f194b09a1"
 
 	m1 := 10; n1 :: 10
 	block_data1 := [n1]u16 { 6, 9, 3, 4, 7, 7, 0, 3, 5, 2, }
+	check_data1 := [n1]u16 { 6, 9, 3, 4, 7, 7, 0, 3, 5, 2, }
 	truth_data1 := [n1]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, }
 
 	m2 := 58; n2 :: 21
 	block_data2 := [n2]u16 { 7, 4, 6, 21, 49, 55, 24, 23, 22, 50, 27, 39, 24, 24, 17, 32, 57, 43, 26, 5, 29, }
+	check_data2 := [n2]u16 { 7, 4, 6, 21, 49, 55, 24, 23, 22, 50, 27, 39, 24, 24, 17, 32, 57, 43, 26, 5, 29, }
 	truth_data2 := [n2]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, }
 
 	m3 := 65536; n3 :: 17
 	block_data3 := [n3]u16 { 14290, 31359, 58054, 51842, 44653, 34762, 28652, 48929, 6541, 13788, 7784, 46182, 61098, 43056, 3564, 21568, 63878, }
+	check_data3 := [n3]u16 { 14290, 31359, 58054, 51842, 44653, 34762, 28652, 48929, 6541, 13788, 7784, 46182, 61098, 43056, 3564, 21568, 63878, }
 	truth_data3 := [n3]u16 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, }
 
 	key_data, _ := hex.decode(transmute([]byte)key_string, context.temp_allocator)
 	iv_data,  _ := hex.decode(transmute([]byte)iv_string,  context.temp_allocator)
 
-	check_data1: [n1]u16 = ---
-	check_data2: [n2]u16 = ---
-	check_data3: [n3]u16 = ---
+	ctx: belt.Context = ---
+	belt.init(&ctx, key_data)
 
-	copy_slice(check_data1[:], block_data1[:])
-	copy_slice(check_data2[:], block_data2[:])
-	copy_slice(check_data3[:], block_data3[:])
-
-	ctx: Context = ---
-	init(&ctx, key_data)
-
-	decrypt_fmt(ctx, m1, iv_data, check_data1[:])
-	decrypt_fmt(ctx, m2, iv_data, check_data2[:])
-	decrypt_fmt(ctx, m3, iv_data, check_data3[:])
+	belt.decrypt_fmt(ctx, m1, iv_data, check_data1[:])
+	belt.decrypt_fmt(ctx, m2, iv_data, check_data2[:])
+	belt.decrypt_fmt(ctx, m3, iv_data, check_data3[:])
 
 	testing.expectf(
 		t,
@@ -1316,6 +1310,4 @@ test_decrypt_fmt :: proc (t: ^testing.T) {
 		key_string,
 		check_data3,
 	)
-
-	free_all(context.temp_allocator)
 }

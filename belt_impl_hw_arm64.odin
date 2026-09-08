@@ -74,7 +74,7 @@ gf128mul_raw_hw :: proc "contextless" (a, b: arm.uint32x4_t) -> arm.uint32x4_t #
 	return arm.veorq_u32(block0, block3)
 }
 
-@(private = "package", enable_target_feature="neon,aes")
+@(enable_target_feature="neon,aes")
 gf128mul_hw :: proc "contextless" (dst, src: []byte) #no_bounds_check {
 	assert_contextless(len(dst) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DST size")
 	assert_contextless(len(src) == BLOCK_SIZE_128_U8, "crypto/belt: invalid SRC size")
@@ -1281,7 +1281,7 @@ open_kwp_hw :: proc "contextless" (ctx: Context, cipher, iv, data: []byte) -> bo
 	}
 }
 
-@(private = "package", enable_target_feature="neon")
+@(enable_target_feature="neon")
 compress_hw :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check {
 	assert_contextless(len(dummy) == BLOCK_SIZE_128_U8, "crypto/belt: invalid DUMMY size")
 	assert_contextless(len(compr) == BLOCK_SIZE_256_U8, "crypto/belt: invalid COMPR size")
