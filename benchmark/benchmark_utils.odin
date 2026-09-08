@@ -1,5 +1,5 @@
 #+build amd64,arm64
-package benchmark
+package benchmark_belt
 
 import "core:crypto"
 import "core:fmt"

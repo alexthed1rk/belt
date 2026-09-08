@@ -1,4 +1,4 @@
-package benchmark
+package benchmark_belt
 
 /* STB 34.101.31-2020                                    */
 /* Information technology and security                   */
