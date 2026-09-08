@@ -1828,7 +1828,7 @@ compress :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check {
 	}
 }
 
-@(private = "package")
+@(private = "file")
 compress_raw :: proc "contextless" (data1, data2: [2]Block128_U32) -> (dummy: Block128_U32, compr: [2]Block128_U32) #no_bounds_check {
 	ctx: Context = ---
 	stream: Block128_U32

@@ -1284,7 +1284,7 @@ compress_hw :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check 
 	intrinsics.unaligned_store((^x86.__m128i)(raw_data(dummy)), block)
 }
 
-@(private = "package", enable_target_feature="sse2")
+@(private = "file", enable_target_feature="sse2")
 compress_raw_hw :: proc "contextless" (data1, data2: [2]x86.__m128i) -> (dummy: x86.__m128i, compr: [2]x86.__m128i) #no_bounds_check {
 	ctx: Context = ---
 	stream: x86.__m128i

@@ -1300,7 +1300,7 @@ compress_hw :: proc "contextless" (dummy, compr, data: []byte) #no_bounds_check 
 	intrinsics.unaligned_store((^arm.uint32x4_t)(raw_data(dummy)), block)
 }
 
-@(private = "package", enable_target_feature="neon")
+@(private = "file", enable_target_feature="neon")
 compress_raw_hw :: proc "contextless" (data1, data2: [2]arm.uint32x4_t) -> (dummy: arm.uint32x4_t, compr: [2]arm.uint32x4_t) #no_bounds_check {
 	ctx: Context = ---
 	stream: arm.uint32x4_t
