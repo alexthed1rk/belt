@@ -1677,21 +1677,9 @@ encrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
 
-	m1 := u16(m)
-	m2 := u16(data_size)
-
 	stream: Block32_U8 = ---
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(stream[:BLOCK_SIZE_16_U8]),
-		&m1,
-		BLOCK_SIZE_16_U8,
-	)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(stream[BLOCK_SIZE_16_U8:]),
-		&m2,
-		BLOCK_SIZE_16_U8,
-	)
+	intrinsics.unaligned_store((^u16)(raw_data(stream[:BLOCK_SIZE_16_U8])), u16(m))
+	intrinsics.unaligned_store((^u16)(raw_data(stream[BLOCK_SIZE_16_U8:])), u16(data_size))
 
 	table1 := [?]Block32_U8 {
 		Block32_U8 {0xb1, 0x94, 0xba, 0xc8},
@@ -1776,21 +1764,9 @@ decrypt_fmt_hw :: proc "contextless" (ctx: Context, m: int, iv: []byte, data: []
 	backbuff1: Backbuff_U8 = ---
 	backbuff2: Backbuff_U8 = ---
 
-	m1 := u16(m)
-	m2 := u16(data_size)
-
 	stream: Block32_U8 = ---
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(stream[:BLOCK_SIZE_16_U8]),
-		&m1,
-		BLOCK_SIZE_16_U8,
-	)
-
-	intrinsics.mem_copy_non_overlapping(
-		raw_data(stream[BLOCK_SIZE_16_U8:]),
-		&m2,
-		BLOCK_SIZE_16_U8,
-	)
+	intrinsics.unaligned_store((^u16)(raw_data(stream[:BLOCK_SIZE_16_U8])), u16(m))
+	intrinsics.unaligned_store((^u16)(raw_data(stream[BLOCK_SIZE_16_U8:])), u16(data_size))
 
 	table1 := [?]Block32_U8 {
 		Block32_U8 {0xb1, 0x94, 0xba, 0xc8},
