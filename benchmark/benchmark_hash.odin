@@ -68,9 +68,9 @@ do_bench_hash :: proc(
 	buf := options.input
 
 	for _ in 0 ..= options.rounds {
-		belt.derive_hash(digest[:], buf)
+		belt.hash_bytes_to_buffer(buf, digest[:])
 
-		// NOTE(alex): odin-nightly erases the derive_hash;
+		// NOTE(alex): odin-nightly erases the hash_bytes_to_buffer;
 		// so I put some extra unreachable branch
 		if len(os.args) == 1000 {
 			fmt.print(digest)

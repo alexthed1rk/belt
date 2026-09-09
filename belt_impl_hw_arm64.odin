@@ -671,13 +671,13 @@ table_φ2_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.u
 	return arm.veorq_u32(block1, block2)
 }
 
-/* Message authentication code derivation: belt-derive-mac */
+/* Message authentication code sum: belt-mac-sum */
 @(enable_target_feature="neon")
-derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds_check {
-	data_size := len(data)
+mac_sum_hw :: proc "contextless" (ctx: Context, dst, msg: []byte) #no_bounds_check {
+	data_size := len(msg)
 
-	ensure_contextless(len(mac) == BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
-	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
+	ensure_contextless(len(dst) == BLOCK_SIZE_64_U8, "crypto/belt: invalid DST size")
+	ensure_contextless(data_size != 0, "crypto/belt: invalid MSG size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 
 	block0: Block128_U8
@@ -685,7 +685,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 	block2: arm.uint32x4_t
 	block3: arm.uint32x4_t
 
-	stream := data
+	stream := msg
 	stream_size := data_size
 
 	block2 = encrypt_block_raw_hw(ctx, block2)
@@ -725,7 +725,7 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 	block0 = transmute(Block128_U8)block3
 
 	intrinsics.mem_copy_non_overlapping(
-		raw_data(mac),
+		raw_data(dst),
 		&block0,
 		BLOCK_SIZE_64_U8,
 	)
@@ -733,10 +733,10 @@ derive_mac_hw :: proc "contextless" (ctx: Context, mac, data: []byte) #no_bounds
 
 /* Authenticated encryption: belt-seal-dwp */
 @(enable_target_feature="neon,aes")
-seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bounds_check {
-	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+seal_dwp_hw :: proc "contextless" (ctx: Context, tag, iv, aad, data: []byte) #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); tag_size := len(tag)
 
-	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(tag_size != 0 && tag_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid TAG size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -842,18 +842,18 @@ seal_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	block5 = encrypt_block_raw_hw(ctx, block5)
 
 	intrinsics.mem_copy_non_overlapping(
-		raw_data(mac),
+		raw_data(tag),
 		&block5,
-		mac_size,
+		tag_size,
 	)
 }
 
 /* Authenticated encryption: belt-open-dwp */
 @(enable_target_feature="neon,aes")
-open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> bool #no_bounds_check {
-	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+open_dwp_hw :: proc "contextless" (ctx: Context, tag, iv, aad, data: []byte) -> bool #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); tag_size := len(tag)
 
-	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(tag_size != 0 && tag_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid TAG size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -951,13 +951,13 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	block5 = encrypt_block_raw_hw(ctx, block5)
 
 	if runtime.memory_compare(
-		raw_data(mac),
+		raw_data(tag),
 		&block5,
-		mac_size,
+		tag_size,
 	) == 0 {
 		return true
 	} else {
-		zero_explicit(raw_data(mac), mac_size)
+		zero_explicit(raw_data(tag), tag_size)
 		zero_explicit(raw_data(data), data_size)
 
 		return false
@@ -966,10 +966,10 @@ open_dwp_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 
 /* Authenticated encryption: belt-seal-che */
 @(enable_target_feature="neon,aes")
-seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no_bounds_check {
-	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+seal_che_hw :: proc "contextless" (ctx: Context, tag, iv, aad, data: []byte) #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); tag_size := len(tag)
 
-	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(tag_size != 0 && tag_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid TAG size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -1088,18 +1088,18 @@ seal_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) #no
 	block6 = encrypt_block_raw_hw(ctx, block6)
 
 	intrinsics.mem_copy_non_overlapping(
-		raw_data(mac),
+		raw_data(tag),
 		&block6,
-		mac_size,
+		tag_size,
 	)
 }
 
 /* Authenticated encryption: belt-open-che */
 @(enable_target_feature="neon,aes")
-open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> bool #no_bounds_check {
-	data_size := len(data); aad_size := len(aad); mac_size := len(mac)
+open_che_hw :: proc "contextless" (ctx: Context, tag, iv, aad, data: []byte) -> bool #no_bounds_check {
+	data_size := len(data); aad_size := len(aad); tag_size := len(tag)
 
-	ensure_contextless(mac_size != 0 && mac_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid MAC size")
+	ensure_contextless(tag_size != 0 && tag_size <= BLOCK_SIZE_64_U8, "crypto/belt: invalid TAG size")
 	ensure_contextless(ctx.is_initialized, "crypto/belt: CTX is not initialized")
 	ensure_contextless(len(iv) == BLOCK_SIZE_128_U8, "crypto/belt: invalid IV size")
 	ensure_contextless(data_size != 0, "crypto/belt: invalid DATA size")
@@ -1210,13 +1210,13 @@ open_che_hw :: proc "contextless" (ctx: Context, iv, aad, mac, data: []byte) -> 
 	block6 = encrypt_block_raw_hw(ctx, block6)
 
 	if runtime.memory_compare(
-		raw_data(mac),
+		raw_data(tag),
 		&block6,
-		mac_size,
+		tag_size,
 	) == 0 {
 		return true
 	} else {
-		zero_explicit(raw_data(mac), mac_size)
+		zero_explicit(raw_data(tag), tag_size)
 		zero_explicit(raw_data(data), data_size)
 
 		return false
@@ -1337,9 +1337,9 @@ compress_raw_hw :: proc "contextless" (data1, data2: [2]arm.uint32x4_t) -> (dumm
 	return
 }
 
-/* Hash derivation: belt-derive-hash */
+/* Hash bytes to buffer: belt-hash-bytes-to-buffer */
 @(enable_target_feature="neon")
-derive_hash_hw :: proc "contextless" (hash, data: []byte) #no_bounds_check {
+hash_bytes_to_buffer_hw :: proc "contextless" (data, hash: []byte) #no_bounds_check {
 	data_size := len(data)
 
 	ensure_contextless(len(hash) == BLOCK_SIZE_256_U8, "crypto/belt: invalid HASH size")

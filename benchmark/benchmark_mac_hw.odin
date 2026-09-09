@@ -79,15 +79,15 @@ do_bench_mac_hw :: proc(
 
 	ctx: belt.Context = ---
 	belt.init(&ctx, key[:])
-	mac: belt.Mac64_U8 = ---
+	tag: belt.Tag64_U8 = ---
 
 	for _ in 0 ..= options.rounds {
-		belt.derive_mac_hw(ctx, mac[:], buf)
+		belt.mac_sum_hw(ctx, tag[:], buf)
 
-		// NOTE(alex): odin-nightly erases the derive_mac_hw;
+		// NOTE(alex): odin-nightly erases the mac_sum_hw;
 		// so I put some extra unreachable branch
 		if len(os.args) == 1000 {
-			fmt.print(mac)
+			fmt.print(tag)
 		}
 	}
 	options.count = options.rounds

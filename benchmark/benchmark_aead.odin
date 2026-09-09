@@ -110,9 +110,9 @@ do_bench_belt_dwp :: proc(
 	iv := options.input[:iv_sz]
 	buf := options.input[iv_sz:]
 
-	mac: belt.Mac64_U8 = ---
+	tag: belt.Tag64_U8 = ---
 	for _ in 0 ..= options.rounds {
-		belt.seal_dwp(ctx^, iv, nil, mac[:], buf)
+		belt.seal_dwp(ctx^, tag[:], iv, nil, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * (options.bytes - iv_sz)
@@ -133,9 +133,9 @@ do_bench_belt_che :: proc(
 	iv := options.input[:iv_sz]
 	buf := options.input[iv_sz:]
 
-	mac: belt.Mac64_U8 = ---
+	tag: belt.Tag64_U8 = ---
 	for _ in 0 ..= options.rounds {
-		belt.seal_che(ctx^, iv, nil, mac[:], buf)
+		belt.seal_che(ctx^, tag[:], iv, nil, buf)
 	}
 	options.count = options.rounds
 	options.processed = options.rounds * (options.bytes - iv_sz)

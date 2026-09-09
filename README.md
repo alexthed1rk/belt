@@ -30,8 +30,8 @@ Use `belt_benchmark.bat` or `belt_benchmark.sh`
 | `decrypt_ecb` | Electronic codebook encryption: `belt-decrypt-ecb` |
 | `encrypt_cbc` | Cipher block chaining encryption: `belt-encrypt-cbc` |
 | `decrypt_cbc` | Cipher block chaining encryption: `belt-decrypt-cbc` |
-| `derive_mac` | Message authentication code derivation: `belt-derive-mac` |
-| `derive_hash` | Hash derivation: `belt-derive-hash` |
+| `mac_sum` | Message authentication code sum: `belt-mac-sum` |
+| `hash_bytes_to_buffer` | Hash bytes to buffer: `belt-hash-bytes-to-buffer` |
 | `encrypt_bde` | Block level encryption: `belt-encrypt-bde` |
 | `decrypt_bde` | Block level encryption: `belt-decrypt-bde` |
 | `encrypt_sde` | Sector level encryption: `belt-encrypt-sde` |

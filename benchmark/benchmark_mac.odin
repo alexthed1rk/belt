@@ -74,15 +74,15 @@ do_bench_mac :: proc(
 
 	ctx: belt.Context = ---
 	belt.init(&ctx, key[:])
-	mac: belt.Mac64_U8 = ---
+	tag: belt.Tag64_U8 = ---
 
 	for _ in 0 ..= options.rounds {
-		belt.derive_mac(ctx, mac[:], buf)
+		belt.mac_sum(ctx, tag[:], buf)
 
-		// NOTE(alex): odin-nightly erases the derive_mac;
+		// NOTE(alex): odin-nightly erases the mac_sum;
 		// so I put some extra unreachable branch
 		if len(os.args) == 1000 {
-			fmt.print(mac)
+			fmt.print(tag)
 		}
 	}
 	options.count = options.rounds
