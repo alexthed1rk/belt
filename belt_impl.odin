@@ -1843,7 +1843,7 @@ compress_raw :: proc "contextless" (data1, data2: [2]Block128_U32) -> (dummy: Bl
 	compr[a] = encrypt_block_raw(ctx, data1[a])
 	compr[a] = compr[a] ~ data1[a]
 
-	stream = ~dummy
+	stream = dummy ~ Block128_U32(max(u32))
 	init_raw(&ctx, stream, data2[a])
 	compr[b] = encrypt_block_raw(ctx, data1[b])
 	compr[b] = compr[b] ~ data1[b]
@@ -2244,16 +2244,6 @@ derive_key :: proc "contextless" (depth, iv, dst, src: []byte) #no_bounds_check 
 	)
 }
 
-/* Reorder the lanes of a Block128_U32 block */
-@(private = "file")
-swizzle_block :: #force_inline proc "contextless" (x: Block128_U32, indices: ..int) -> Block128_U32 #no_bounds_check {
-	block: Block128_U32 = ---
-	#unroll for i in 0..<BLOCK_SIZE_128_U32 {
-		block[i] = x[indices[i]]
-	}
-	return block
-}
-
 /* Reorder the lanes of two Block128_U32 blocks */
 @(private = "file")
 shuffle_block :: #force_inline proc "contextless" (a, b: Block128_U32, indices: ..int) -> Block128_U32 #no_bounds_check {
@@ -2344,15 +2334,15 @@ gf128mul_raw :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_boun
 	mask := Block128_U32 {max(u32), 0, 0, 0}
 	block0 = soft_vmull_low_p64(a, b)
 	block3 = soft_vmull_high_p64(a, b)
-	block1 = swizzle_block(a, 2, 3, 0, 1)
-	block2 = swizzle_block(b, 2, 3, 0, 1)
+	block1 = shuffle_block(a, a, 2, 3, 4, 5)
+	block2 = shuffle_block(b, b, 2, 3, 4, 5)
 	block1 = block1 ~ a
 	block2 = block2 ~ b
 	block1 = soft_vmull_low_p64(block1, block2)
 	block1 = block1 ~ block0
 	block1 = block1 ~ block3
-	block2 = shuffle_block(block1, Block128_U32{}, 4, 5, 0, 1)
-	block1 = shuffle_block(Block128_U32{}, block1, 6, 7, 0, 1)
+	block2 = shuffle_block(Block128_U32(0), block1, 2, 3, 4, 5)
+	block1 = shuffle_block(block1, Block128_U32(0), 2, 3, 4, 5)
 	block0 = block0 ~ block2
 	block3 = block3 ~ block1
 	block4 = shr_block(block3, 31)
@@ -2360,7 +2350,7 @@ gf128mul_raw :: proc "contextless" (a, b: Block128_U32) -> Block128_U32 #no_boun
 	block6 = shr_block(block3, 25)
 	block4 = block4 ~ block5
 	block4 = block4 ~ block6
-	block5 = swizzle_block(block4, 3, 0, 1, 2)
+	block5 = shuffle_block(block4, block4, 3, 4, 5, 6)
 	block4 = mask & block5
 	block5 = block5 &~ mask
 	block0 = block0 ~ block5
@@ -2618,7 +2608,7 @@ encrypt_block32 :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_ch
 		stream2 = encrypt_block_raw(ctx, stream2)
 		stream2 = stream2 ~ block
 
-		block = Block128_U32{max(u32), max(u32), 0, 0}
+		block = Block128_U32 {max(u32), max(u32), 0, 0}
 		block = stream2 & block
 
 		stream2 = stream2 ~ stream1
