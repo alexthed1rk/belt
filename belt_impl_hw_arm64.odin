@@ -8,7 +8,6 @@ package belt
 
 import "base:intrinsics"
 import "base:runtime"
-import "core:simd"
 import "core:simd/arm"
 import "core:sys/info"
 
@@ -44,15 +43,15 @@ gf128mul_raw_hw :: proc "contextless" (a, b: arm.uint32x4_t) -> arm.uint32x4_t #
 	mask := arm.uint32x4_t {max(u32), 0, 0, 0}
 	block0 = arm_vmull_low_p64(a, b)
 	block3 = arm_vmull_high_p64(a, b)
-	block1 = simd.swizzle(a, 2, 3, 0, 1)
-	block2 = simd.swizzle(b, 2, 3, 0, 1)
+	block1 = arm.vextq_u32(a, a, 2)
+	block2 = arm.vextq_u32(b, b, 2)
 	block1 = arm.veorq_u32(block1, a)
 	block2 = arm.veorq_u32(block2, b)
 	block1 = arm_vmull_low_p64(block1, block2)
 	block1 = arm.veorq_u32(block1, block0)
 	block1 = arm.veorq_u32(block1, block3)
-	block2 = simd.shuffle(block1, arm.uint32x4_t{}, 4, 5, 0, 1)
-	block1 = simd.shuffle(arm.uint32x4_t{}, block1, 6, 7, 0, 1)
+	block2 = arm.vextq_u32(arm.uint32x4_t(0), block1, 2)
+	block1 = arm.vextq_u32(block1, arm.uint32x4_t(0), 2)
 	block0 = arm.veorq_u32(block0, block2)
 	block3 = arm.veorq_u32(block3, block1)
 	block4 = arm.vshrq_n_u32(block3, 31)
@@ -60,7 +59,7 @@ gf128mul_raw_hw :: proc "contextless" (a, b: arm.uint32x4_t) -> arm.uint32x4_t #
 	block6 = arm.vshrq_n_u32(block3, 25)
 	block4 = arm.veorq_u32(block4, block5)
 	block4 = arm.veorq_u32(block4, block6)
-	block5 = simd.swizzle(block4, 3, 0, 1, 2)
+	block5 = arm.vextq_u32(block4, block4, 3)
 	block4 = arm.vandq_u32(mask, block5)
 	block5 = arm.vbicq_u32(block5, mask)
 	block0 = arm.veorq_u32(block0, block5)
@@ -124,10 +123,10 @@ encrypt_block_raw_hw :: proc "contextless" (ctx: Context, block: arm.uint32x4_t)
 		stream2[c] ~= table_g05(stream2[d] + ctx.key[7 * round + 6])
 
 		stream1 = transmute(arm.uint32x4_t)stream2
-		stream1 = simd.shuffle(stream1, stream1, 1, 3, 0, 2)
+		stream1 = arm.vuzp1q_u32(arm.vextq_u32(stream1, stream1, 1), stream1)
 	}
 
-	return simd.shuffle(stream1, stream1, 1, 3, 0, 2)
+	return arm.vuzp1q_u32(arm.vextq_u32(stream1, stream1, 1), stream1)
 }
 
 /* Block cipher: belt-decrypt-block */
@@ -166,10 +165,10 @@ decrypt_block_raw_hw :: proc "contextless" (ctx: Context, block: arm.uint32x4_t)
 		stream2[c] ~= table_g05(stream2[d] + ctx.key[49 - 7 * round])
 
 		stream1 = transmute(arm.uint32x4_t)stream2
-		stream1 = simd.shuffle(stream1, stream1, 2, 0, 3, 1)
+		stream1 = arm.vzip1q_u32(arm.vextq_u32(stream1, stream1, 2), stream1)
 	}
 
-	return simd.shuffle(stream1, stream1, 2, 0, 3, 1)
+	return arm.vzip1q_u32(arm.vextq_u32(stream1, stream1, 2), stream1)
 }
 
 /* Wide block cipher: belt-encrypt-wide-block */
@@ -657,15 +656,15 @@ decrypt_ctr_hw :: encrypt_ctr_hw
 @(require_results, private = "file", enable_target_feature="neon")
 table_φ1_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	block1, block2: arm.uint32x4_t
-	block1 = simd.shuffle(data, data, 1, 2, 3, 0)
-	block2 = simd.shuffle(block1, arm.uint32x4_t{}, 4, 5, 6, 0)
+	block1 = arm.vextq_u32(data, data, 1)
+	block2 = arm.vextq_u32(arm.uint32x4_t(0), block1, 1)
 	return arm.veorq_u32(block1, block2)
 }
 
 @(require_results, private = "file", enable_target_feature="neon")
 table_φ2_hw :: #force_inline proc "contextless" (data: arm.uint32x4_t) -> arm.uint32x4_t #no_bounds_check {
 	block1, block2: arm.uint32x4_t
-	block1 = simd.shuffle(data, data, 3, 0, 1, 2)
+	block1 = arm.vextq_u32(data, data, 3)
 	block2 = arm.uint32x4_t {max(u32), 0, 0, 0}
 	block2 = arm.vandq_u32(data, block2)
 	return arm.veorq_u32(block1, block2)
@@ -1644,7 +1643,7 @@ encrypt_block32_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds
 		block = arm.vandq_u32(stream2, block)
 
 		stream2 = arm.veorq_u32(stream2, stream1)
-		stream2 = simd.shuffle(stream2, stream2, 2, 3, 0, 1)
+		stream2 = arm.vextq_u32(stream2, stream2, 2)
 		stream1 = block
 	}
 
