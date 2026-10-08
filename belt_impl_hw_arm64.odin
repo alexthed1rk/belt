@@ -282,7 +282,7 @@ encrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		encrypt_block_hw(ctx, stream)
+		encrypt_block_hw(ctx, stream[:BLOCK_SIZE_128_U8])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
@@ -327,7 +327,7 @@ decrypt_ecb_hw :: proc "contextless" (ctx: Context, data: []byte) #no_bounds_che
 	stream := data
 	stream_size := data_size
 	for stream_size >= BLOCK_SIZE_128_U8 {
-		decrypt_block_hw(ctx, stream)
+		decrypt_block_hw(ctx, stream[:BLOCK_SIZE_128_U8])
 
 		stream = stream[BLOCK_SIZE_128_U8:]
 		stream_size -= BLOCK_SIZE_128_U8
